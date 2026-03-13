@@ -50,6 +50,13 @@ OUT_DIR="./mdtest_run_${RUN_TAG}"
 # 是否采集 Ceph 状态
 COLLECT_CEPH_STATUS=1
 
+# MDS 指标采集控制
+COLLECT_MDS_METRICS=1
+CEPH_HOST_FILE="ceph_host"
+MDS_COLLECTOR_SCRIPT="collect_mds_metrics.sh"
+MDS_REMOTE_BASE="/tmp/mds_metrics"
+MDS_INTERVAL=10
+
 # --------------------------------------
 # 内部变量
 # --------------------------------------
@@ -59,6 +66,8 @@ PID_C=""
 RC_A=0
 RC_B=0
 RC_C=0
+
+declare -a MDS_HOSTS=()
 
 # --------------------------------------
 # 基础函数
@@ -117,6 +126,95 @@ cleanup_on_signal() {
 
 trap cleanup_on_signal INT TERM
 
+load_ceph_hosts() {
+  local host_file="$1"
+  MDS_HOSTS=()
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%%#*}"
+    line="$(echo "$line" | xargs)"
+    [ -z "$line" ] && continue
+    MDS_HOSTS+=("$line")
+  done < "$host_file"
+}
+
+remote_mds_cmd() {
+  local host="$1"
+  shift
+  # 新增 StrictHostKeyChecking=no 和 UserKnownHostsFile=/dev/null 跳过密钥校验
+  ssh -o BatchMode=yes -o ConnectTimeout=10 \
+      -o StrictHostKeyChecking=no \
+      -o UserKnownHostsFile=/dev/null \
+      "root@${host}" "$@"
+}
+
+push_mds_collector() {
+  local remote_dir="${MDS_REMOTE_BASE}/${RUN_TAG}"
+  local host
+  for host in "${MDS_HOSTS[@]}"; do
+    if ! remote_mds_cmd "$host" "mkdir -p '${remote_dir}'"; then
+      warn "创建远程目录失败: ${host}:${remote_dir}"
+      continue
+    fi
+    if ! scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$MDS_COLLECTOR_SCRIPT" "root@${host}:${remote_dir}/"; then
+      warn "分发采集脚本失败: ${host}"
+      continue
+    fi
+  done
+}
+
+start_remote_mds_collectors() {
+  local remote_dir="${MDS_REMOTE_BASE}/${RUN_TAG}"
+  local host
+  for host in "${MDS_HOSTS[@]}"; do
+    if ! remote_mds_cmd "$host" "nohup bash '${remote_dir}/${MDS_COLLECTOR_SCRIPT}' --outdir '${remote_dir}/data' --interval '${MDS_INTERVAL}' >'${remote_dir}/collector.stdout.log' 2>'${remote_dir}/collector.stderr.log' < /dev/null & echo \$! > '${remote_dir}/collector.pid'"; then
+      warn "远程启动采集器失败: ${host}"
+    else
+      log "远程采集器已启动: ${host}"
+    fi
+  done
+}
+
+stop_remote_mds_collectors() {
+  local remote_dir="${MDS_REMOTE_BASE}/${RUN_TAG}"
+  local host
+  for host in "${MDS_HOSTS[@]}"; do
+    remote_mds_cmd "$host" "if [ -f '${remote_dir}/collector.pid' ]; then pid=\$(cat '${remote_dir}/collector.pid'); kill -TERM \"\$pid\" 2>/dev/null || true; fi" || warn "停止远程采集器失败: ${host}"
+  done
+}
+
+fetch_remote_mds_metrics() {
+  local remote_dir="${MDS_REMOTE_BASE}/${RUN_TAG}"
+  local local_base="${OUT_DIR}/mds_metrics"
+  local host
+
+  mkdir -p "$local_base"
+
+  for host in "${MDS_HOSTS[@]}"; do
+    local remote_tar="${remote_dir}/${host}_mds_metrics.tar.gz"
+    local local_host_dir="${local_base}/${host}"
+
+    mkdir -p "$local_host_dir"
+
+    if ! remote_mds_cmd "$host" "tar -C '${remote_dir}' -czf '${remote_tar}' data collector.stdout.log collector.stderr.log collector.pid 2>/dev/null || tar -C '${remote_dir}' -czf '${remote_tar}' data"; then
+      warn "远程打包失败: ${host}"
+      continue
+    fi
+
+    if ! scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@${host}:${remote_tar}" "${local_host_dir}/"; then
+      warn "拉取采集包失败: ${host}"
+      continue
+    fi
+
+    if ! tar -C "$local_host_dir" -xzf "${local_host_dir}/${host}_mds_metrics.tar.gz"; then
+      warn "本地解包失败: ${host}"
+      continue
+    fi
+
+    log "已回传并解包 MDS 采集数据: ${host}"
+  done
+}
+
 # --------------------------------------
 # hostfile 容量检查
 # --------------------------------------
@@ -163,6 +261,16 @@ check_env() {
   check_file "$HOSTFILE_A"
   check_file "$HOSTFILE_B"
   check_file "$HOSTFILE_C"
+
+  if [ "$COLLECT_MDS_METRICS" -eq 1 ]; then
+    check_file "$CEPH_HOST_FILE"
+    check_file "$MDS_COLLECTOR_SCRIPT"
+    load_ceph_hosts "$CEPH_HOST_FILE"
+    if [ "${#MDS_HOSTS[@]}" -eq 0 ]; then
+      warn "${CEPH_HOST_FILE} 中没有可用主机，MDS 指标采集将被跳过"
+      COLLECT_MDS_METRICS=0
+    fi
+  fi
 
   check_dir "$BASE_MNT"
 
@@ -364,6 +472,14 @@ main() {
 
   collect_ceph_status "before"
 
+  if [ "$COLLECT_MDS_METRICS" -eq 1 ]; then
+    log "开始分发并启动远程 MDS 指标采集器"
+    push_mds_collector
+    start_remote_mds_collectors
+    log "等待 5 秒后启动 mdtest"
+    sleep 5
+  fi
+
   start_mdtest_job PID_A "Tenant_A" "$HOSTFILE_A" "$TENANT_A_DIR" "${OUT_DIR}/result_tenant_a.log"
   start_mdtest_job PID_B "Tenant_B" "$HOSTFILE_B" "$TENANT_B_DIR" "${OUT_DIR}/result_tenant_b.log"
   start_mdtest_job PID_C "Tenant_C" "$HOSTFILE_C" "$TENANT_C_DIR" "${OUT_DIR}/result_tenant_c.log"
@@ -374,6 +490,14 @@ main() {
   wait_job "Tenant_A" "$PID_A"; RC_A=$?
   wait_job "Tenant_B" "$PID_B"; RC_B=$?
   wait_job "Tenant_C" "$PID_C"; RC_C=$?
+
+  if [ "$COLLECT_MDS_METRICS" -eq 1 ]; then
+    log "mdtest 已结束，等待 5 秒后停止并回传 MDS 采集数据"
+    sleep 5
+    stop_remote_mds_collectors
+    sleep 1
+    fetch_remote_mds_metrics
+  fi
 
   collect_ceph_status "after"
 
