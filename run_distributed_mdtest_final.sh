@@ -141,11 +141,15 @@ load_ceph_hosts() {
 remote_mds_cmd() {
   local host="$1"
   shift
+<<<<<<< ours
   # 新增 StrictHostKeyChecking=no 和 UserKnownHostsFile=/dev/null 跳过密钥校验
   ssh -o BatchMode=yes -o ConnectTimeout=10 \
       -o StrictHostKeyChecking=no \
       -o UserKnownHostsFile=/dev/null \
       "root@${host}" "$@"
+=======
+  ssh -o BatchMode=yes -o ConnectTimeout=10 "root@${host}" "$@"
+>>>>>>> theirs
 }
 
 push_mds_collector() {
@@ -156,7 +160,11 @@ push_mds_collector() {
       warn "创建远程目录失败: ${host}:${remote_dir}"
       continue
     fi
+<<<<<<< ours
     if ! scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$MDS_COLLECTOR_SCRIPT" "root@${host}:${remote_dir}/"; then
+=======
+    if ! scp -q "$MDS_COLLECTOR_SCRIPT" "root@${host}:${remote_dir}/"; then
+>>>>>>> theirs
       warn "分发采集脚本失败: ${host}"
       continue
     fi
@@ -201,7 +209,11 @@ fetch_remote_mds_metrics() {
       continue
     fi
 
+<<<<<<< ours
     if ! scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@${host}:${remote_tar}" "${local_host_dir}/"; then
+=======
+    if ! scp -q "root@${host}:${remote_tar}" "${local_host_dir}/"; then
+>>>>>>> theirs
       warn "拉取采集包失败: ${host}"
       continue
     fi

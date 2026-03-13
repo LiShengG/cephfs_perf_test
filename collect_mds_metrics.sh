@@ -39,7 +39,35 @@ safe_append_tsv() {
 
 get_pid_from_asok() {
   local asok="$1"
+<<<<<<< ours
   ceph daemon "$asok" status 2>/dev/null | jq -r '.pid // empty' 2>/dev/null || true
+=======
+  local base mds_name short_id pid
+
+  pid="$(ceph daemon "$asok" status 2>/dev/null | jq -r '.pid // empty' 2>/dev/null || true)"
+  if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+    echo "$pid"
+    return 0
+  fi
+
+  base="$(basename "$asok")"
+  mds_name="${base#ceph-mds.}"
+  mds_name="${mds_name%.asok}"
+  short_id="${mds_name%%.*}"
+
+  pid="$(ps -eo pid=,args= | awk -v full="$mds_name" -v sid="$short_id" '
+    /ceph-mds/ {
+      if ($0 ~ full || $0 ~ ("-i[[:space:]]+" sid) || $0 ~ ("--id[=[:space:]]" sid)) {
+        print $1
+        exit
+      }
+    }
+  ')"
+
+  if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+    echo "$pid"
+  fi
+>>>>>>> theirs
 }
 
 collect_one_mds() {
@@ -91,7 +119,12 @@ collect_one_mds() {
     log_err "$err_file" "pid not found or not alive for ${asok}"
   fi
 
+<<<<<<< ours
   safe_append_tsv "${now}\tmds.${mds_name}\t${pid:-}\t${cpu:-}\t${rss:-}\t${read_b:-}\t${write_b:-}" "$proc_file"
+=======
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$now" "mds.${mds_name}" "${pid:-}" "${cpu:-}" "${rss:-}" "${read_b:-}" "${write_b:-}" >> "$proc_file"
+>>>>>>> theirs
 }
 
 on_term() {
