@@ -418,6 +418,36 @@ extract_mdtest_summary() {
   } >> "$out"
 }
 
+extract_aggregated_totals() {
+  local log_a="$1"
+  local log_b="$2"
+  local log_c="$3"
+  local out="$4"
+
+  awk '
+    /File creation/ { create += $3; create_cnt++ }
+    /File stat/     { statv  += $3; stat_cnt++ }
+    /File read/     { readv  += $3; read_cnt++ }
+    /File removal/  { remove += $3; remove_cnt++ }
+
+    END {
+      printf "===== Aggregated total throughput =====\n" >> out
+      printf "Total File creation OPS : %.3f\n", create >> out
+      printf "Total File stat OPS     : %.3f\n", statv  >> out
+      printf "Total File read OPS     : %.3f\n", readv  >> out
+      printf "Total File removal OPS  : %.3f\n", remove >> out
+      printf "\n" >> out
+
+      printf "===== Per-tenant average throughput =====\n" >> out
+      if (create_cnt > 0) printf "Avg File creation OPS   : %.3f\n", create / create_cnt >> out
+      if (stat_cnt   > 0) printf "Avg File stat OPS       : %.3f\n", statv  / stat_cnt   >> out
+      if (read_cnt   > 0) printf "Avg File read OPS       : %.3f\n", readv  / read_cnt   >> out
+      if (remove_cnt > 0) printf "Avg File removal OPS    : %.3f\n", remove / remove_cnt >> out
+      printf "\n" >> out
+    }
+  ' out="$out" "$log_a" "$log_b" "$log_c"
+}
+
 generate_final_report() {
   local report="${OUT_DIR}/final_summary.txt"
   : > "$report"
@@ -447,6 +477,12 @@ generate_final_report() {
   extract_mdtest_summary "${OUT_DIR}/result_tenant_a.log" "$report"
   extract_mdtest_summary "${OUT_DIR}/result_tenant_b.log" "$report"
   extract_mdtest_summary "${OUT_DIR}/result_tenant_c.log" "$report"
+
+  extract_aggregated_totals \
+  "${OUT_DIR}/result_tenant_a.log" \
+  "${OUT_DIR}/result_tenant_b.log" \
+  "${OUT_DIR}/result_tenant_c.log" \
+  "$report"
 
   log "汇总报告生成完成: ${report}"
 }
