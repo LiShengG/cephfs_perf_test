@@ -53,9 +53,9 @@ COLLECT_CEPH_STATUS=1
 # MDS 指标采集控制
 COLLECT_MDS_METRICS=1
 CEPH_HOST_FILE="ceph_host"
-MDS_COLLECTOR_SCRIPT="collect_mds_metrics.sh"
+MDS_COLLECTOR_SCRIPT="collect_mds_perf_raw.sh"
 MDS_REMOTE_BASE="/tmp/mds_metrics"
-MDS_INTERVAL=10
+MDS_INTERVAL=30
 
 # --------------------------------------
 # 内部变量
@@ -167,7 +167,7 @@ start_remote_mds_collectors() {
   local remote_dir="${MDS_REMOTE_BASE}/${RUN_TAG}"
   local host
   for host in "${MDS_HOSTS[@]}"; do
-    if ! remote_mds_cmd "$host" "nohup bash '${remote_dir}/${MDS_COLLECTOR_SCRIPT}' --outdir '${remote_dir}/data' --interval '${MDS_INTERVAL}' >'${remote_dir}/collector.stdout.log' 2>'${remote_dir}/collector.stderr.log' < /dev/null & echo \$! > '${remote_dir}/collector.pid'"; then
+    if ! remote_mds_cmd "$host" "nohup bash '${remote_dir}/${MDS_COLLECTOR_SCRIPT}' --output-dir '${remote_dir}/data' --interval '${MDS_INTERVAL}' --tag '${RUN_TAG}' >'${remote_dir}/collector.stdout.log' 2>'${remote_dir}/collector.stderr.log' < /dev/null & echo \$! > '${remote_dir}/collector.pid'"; then
       warn "远程启动采集器失败: ${host}"
     else
       log "远程采集器已启动: ${host}"
