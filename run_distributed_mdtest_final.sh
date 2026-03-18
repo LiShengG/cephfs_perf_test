@@ -24,11 +24,20 @@ MPI_PREFIX="/usr/lib64/openmpi"
 # NP_PER_TENANT=64
 # FILES_PER_PROC=50000
 # ITERATIONS=3
-NP_PER_TENANT=16
-FILES_PER_PROC=5000
+NP_PER_TENANT=32
+FILES_PER_PROC=50000
 ITERATIONS=1
-MDTEST_ARGS="-F -C -T -r -R -u"
+MDTEST_ARGS="-F -C -T -r -R -u -w 4K -e 4K"
+# -F -C -T -r -R -u -w 4K   -e 4K
+# -F -C -T -r -R -u -w 16K  -e 16K
+# -F -C -T -r -R -u -w 64K  -e 64K
+# -F -C -T -r -R -u -w 256K -e 256K
+# -F -C -T -r -R -u -w 1M   -e 1M
+# -F -C -T -r -R -u -w 4M   -e 4M
+# -F -C -T -r -R -u -w 16M  -e 16M
 # -F -C -T -r -R -u -U
+# Dir Pin
+# MDS Num: 3
 
 # 三个 hostfile（已拆分）
 HOSTFILE_A="mpi_hosts_a"
@@ -106,6 +115,55 @@ check_dir() {
 check_exec() {
   local f="$1"
   [ -x "$f" ] || fail "不可执行或不存在: $f"
+}
+
+get_hosts_from_hostfile() {
+  local hostfile="$1"
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*$/ { next }
+    {
+      host=$1
+      sub(/,.*/, "", host)
+      if (host != "") print host
+    }
+  ' "$hostfile" | sort -u
+}
+
+is_local_host() {
+  local host="$1"
+  local short_host fqdn_host
+  short_host="$(hostname -s 2>/dev/null || true)"
+  fqdn_host="$(hostname -f 2>/dev/null || true)"
+
+  case "$host" in
+    localhost|127.0.0.1|::1)
+      return 0
+      ;;
+  esac
+
+  if [ -n "$short_host" ] && [ "$host" = "$short_host" ]; then
+    return 0
+  fi
+
+  if [ -n "$fqdn_host" ] && [ "$host" = "$fqdn_host" ]; then
+    return 0
+  fi
+
+  if hostname -I 2>/dev/null | tr ' ' '\n' | grep -Fxq "$host"; then
+    return 0
+  fi
+
+  return 1
+}
+
+remote_client_cmd() {
+  local host="$1"
+  shift
+  ssh -o BatchMode=yes -o ConnectTimeout=10 \
+      -o StrictHostKeyChecking=no \
+      -o UserKnownHostsFile=/dev/null \
+      "root@${host}" "$@"
 }
 
 cleanup_on_signal() {
@@ -333,8 +391,36 @@ collect_ceph_status() {
 # 测试目录准备
 # --------------------------------------
 prepare_test_dir() {
-  local d="$1"
-  mkdir -p "$d" || fail "无法创建测试目录: $d"
+  local tenant="$1"
+  local hostfile="$2"
+  local d="$3"
+  local host
+  local ok_count=0
+
+  while IFS= read -r host; do
+    [ -z "$host" ] && continue
+
+    if is_local_host "$host"; then
+      if mkdir -p "$d"; then
+        log "${tenant}: 本地创建测试目录成功: ${d}"
+        ok_count=$((ok_count + 1))
+      else
+        warn "${tenant}: 本地创建测试目录失败: ${d}"
+      fi
+      continue
+    fi
+
+    if remote_client_cmd "$host" "mkdir -p '$d'"; then
+      log "${tenant}: 远程创建测试目录成功: ${host}:${d}"
+      ok_count=$((ok_count + 1))
+    else
+      warn "${tenant}: 远程创建测试目录失败: ${host}:${d}"
+    fi
+  done < <(get_hosts_from_hostfile "$hostfile")
+
+  if [ "$ok_count" -eq 0 ]; then
+    fail "${tenant}: 未能在任何客户端节点创建测试目录: ${d}"
+  fi
 }
 
 # --------------------------------------
@@ -502,9 +588,9 @@ main() {
   check_hostfile_capacity "$HOSTFILE_B" "Tenant_B"
   check_hostfile_capacity "$HOSTFILE_C" "Tenant_C"
 
-  prepare_test_dir "$TENANT_A_DIR"
-  prepare_test_dir "$TENANT_B_DIR"
-  prepare_test_dir "$TENANT_C_DIR"
+  prepare_test_dir "Tenant_A" "$HOSTFILE_A" "$TENANT_A_DIR"
+  prepare_test_dir "Tenant_B" "$HOSTFILE_B" "$TENANT_B_DIR"
+  prepare_test_dir "Tenant_C" "$HOSTFILE_C" "$TENANT_C_DIR"
 
   collect_ceph_status "before"
 
