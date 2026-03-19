@@ -8,6 +8,7 @@ import concurrent.futures
 import json
 import logging
 import math
+import re
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -139,6 +140,8 @@ STANDARD_AGGREGATE_PLOTS = [
     ("mds_server.req_lookupino_latency", "period_avg"),
     ("mds_server.req_unlink_latency", "period_avg"),
 ]
+
+RAW_TS_RE = re.compile(r"_(\d{8}T\d{6}[+-]\d{4})\.json$")
 
 
 @dataclass
@@ -309,35 +312,93 @@ def load_raw_index(path: Path) -> List[Dict[str, Any]]:
     return rows
 
 
+def parse_raw_ts_from_path(path: Path) -> Tuple[str, float]:
+    match = RAW_TS_RE.search(path.name)
+    if not match:
+        raise ValueError(f"cannot infer timestamp from filename: {path.name}")
+    dt = datetime.strptime(match.group(1), "%Y%m%dT%H%M%S%z")
+    return dt.isoformat(), dt.timestamp()
+
+
+def build_index_rows_from_raw_tree(run_dir: Path) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    for node_dir in sorted((run_dir / "mds_metrics").glob("*/data/raw/*")):
+        if not node_dir.is_dir():
+            continue
+        for seq, raw_file in enumerate(sorted(node_dir.glob("*.json")), 1):
+            rows.append({"file": str(raw_file.relative_to(run_dir)), "seq": seq})
+    return rows
+
+
+def discover_one_run(run_dir: Path) -> Experiment:
+    legacy_meta = run_dir / "meta" / "run_info.json"
+    legacy_index = run_dir / "summary" / "raw_index.jsonl"
+    if legacy_meta.exists() and legacy_index.exists():
+        meta = read_json(legacy_meta)
+        index_rows = load_raw_index(legacy_index)
+        tag = str(meta.get("tag") or meta.get("experiment_tag") or run_dir.name)
+        cluster = str(meta.get("cluster") or meta.get("cluster_name") or "unknown")
+        start_ts = math.inf
+        for row in index_rows:
+            ts = row.get("timestamp_unix")
+            if isinstance(ts, (int, float)):
+                start_ts = min(start_ts, float(ts))
+        if math.isinf(start_ts):
+            start_ts = 0.0
+        return Experiment(
+            experiment_id=run_dir.name,
+            run_dir=run_dir,
+            experiment_tag=tag,
+            cluster_name=cluster,
+            start_ts_unix=start_ts,
+            raw_index_rows=index_rows,
+        )
+
+    raw_root = run_dir / "mds_metrics"
+    if raw_root.is_dir():
+        index_rows = build_index_rows_from_raw_tree(run_dir)
+        start_ts = math.inf
+        for row in index_rows:
+            try:
+                _, ts_unix = parse_raw_ts_from_path(run_dir / str(row["file"]))
+                start_ts = min(start_ts, ts_unix)
+            except Exception:
+                continue
+        if math.isinf(start_ts):
+            start_ts = 0.0
+        return Experiment(
+            experiment_id=run_dir.name,
+            run_dir=run_dir,
+            experiment_tag=run_dir.name,
+            cluster_name="unknown",
+            start_ts_unix=start_ts,
+            raw_index_rows=index_rows,
+        )
+
+    raise FileNotFoundError(f"unsupported run layout: {run_dir}")
+
+
+def normalize_input_run(path: Path) -> Path:
+    path = path.resolve()
+    if path.name == "mds_metrics":
+        return path.parent
+    if path.name == "data" and path.parent.parent.name == "mds_metrics":
+        return path.parent.parent.parent
+    return path
+
+
 def discover_runs(cfg: AnalysisConfig, error_logger: logging.Logger, logger: logging.Logger) -> Tuple[List[Experiment], List[Dict[str, Any]]]:
     experiments: List[Experiment] = []
     statuses: List[Dict[str, Any]] = []
+    seen: set[str] = set()
     for run in cfg.input_dirs:
-        run_dir = Path(run).resolve()
+        run_dir = normalize_input_run(Path(run))
+        if str(run_dir) in seen:
+            continue
+        seen.add(str(run_dir))
         status = {"run_dir": str(run_dir), "status": "ok", "error": ""}
         try:
-            meta = read_json(run_dir / "meta" / "run_info.json")
-            index_rows = load_raw_index(run_dir / "summary" / "raw_index.jsonl")
-            tag = str(meta.get("tag") or meta.get("experiment_tag") or run_dir.name)
-            cluster = str(meta.get("cluster") or meta.get("cluster_name") or "unknown")
-            # start timestamp from index if possible
-            start_ts = math.inf
-            for row in index_rows:
-                ts = row.get("timestamp_unix")
-                if isinstance(ts, (int, float)):
-                    start_ts = min(start_ts, float(ts))
-            if math.isinf(start_ts):
-                start_ts = 0.0
-            experiments.append(
-                Experiment(
-                    experiment_id=run_dir.name,
-                    run_dir=run_dir,
-                    experiment_tag=tag,
-                    cluster_name=cluster,
-                    start_ts_unix=start_ts,
-                    raw_index_rows=index_rows,
-                )
-            )
+            experiments.append(discover_one_run(run_dir))
         except Exception as exc:
             status["status"] = "failed"
             status["error"] = str(exc)
@@ -361,6 +422,70 @@ def flatten_perf_dump(obj: Any, parent: str = "") -> Dict[str, float]:
     return out
 
 
+def _build_sample_from_legacy_raw(exp: Experiment, rel: str, raw: Dict[str, Any]) -> SampleRecord:
+    meta = raw["sample_meta"]
+    perf_dump = raw["perf_dump"]
+    required = ["timestamp", "timestamp_unix", "host", "mds_name", "mds_daemon", "seq"]
+    for k in required:
+        if k not in meta:
+            raise ValueError(f"sample_meta missing {k} in {rel}")
+    _ = datetime.fromisoformat(str(meta["timestamp"]))
+    ts_unix = float(meta["timestamp_unix"])
+    flat = flatten_perf_dump(perf_dump)
+    return SampleRecord(
+        experiment_id=exp.experiment_id,
+        experiment_tag=exp.experiment_tag,
+        cluster_name=exp.cluster_name,
+        host=str(meta["host"]),
+        mds_name=str(meta["mds_name"]),
+        mds_daemon=str(meta["mds_daemon"]),
+        timestamp=str(meta["timestamp"]),
+        timestamp_unix=ts_unix,
+        time_offset_sec=ts_unix - exp.start_ts_unix,
+        seq=int(meta["seq"]),
+        source_file=str(rel),
+        flat_metrics=flat,
+    )
+
+
+def _build_sample_from_raw_tree(exp: Experiment, rel: str, raw: Dict[str, Any], index_row: Dict[str, Any]) -> SampleRecord:
+    file_path = exp.run_dir / rel
+    parts = file_path.parts
+    try:
+        raw_idx = parts.index("raw")
+    except ValueError as exc:
+        raise ValueError(f"raw path missing raw segment: {rel}") from exc
+    if raw_idx < 2 or raw_idx + 1 >= len(parts):
+        raise ValueError(f"unexpected raw path layout: {rel}")
+
+    host = parts[raw_idx - 2]
+    mds_daemon = parts[raw_idx + 1]
+    timestamp, ts_unix = parse_raw_ts_from_path(file_path)
+    seq = int(index_row.get("seq") or file_path.stem.split("_", 1)[0])
+
+    perf_payload: Any = raw
+    if isinstance(raw.get("perf_dump"), dict):
+        perf_payload = raw["perf_dump"]
+    elif isinstance(raw.get("mds"), dict):
+        perf_payload = {"mds": raw["mds"]}
+
+    flat = flatten_perf_dump(perf_payload)
+    return SampleRecord(
+        experiment_id=exp.experiment_id,
+        experiment_tag=exp.experiment_tag,
+        cluster_name=exp.cluster_name,
+        host=host,
+        mds_name=mds_daemon,
+        mds_daemon=mds_daemon,
+        timestamp=timestamp,
+        timestamp_unix=ts_unix,
+        time_offset_sec=ts_unix - exp.start_ts_unix,
+        seq=seq,
+        source_file=str(rel),
+        flat_metrics=flat,
+    )
+
+
 def _load_one_sample(exp: Experiment, index_row: Dict[str, Any]) -> Tuple[Optional[SampleRecord], Optional[str]]:
     rel = index_row.get("file")
     if not rel:
@@ -370,32 +495,9 @@ def _load_one_sample(exp: Experiment, index_row: Dict[str, Any]) -> Tuple[Option
         return None, f"raw file missing: {rel}"
     try:
         raw = read_json(file_path)
-        meta = raw["sample_meta"]
-        perf_dump = raw["perf_dump"]
-        required = ["timestamp", "timestamp_unix", "host", "mds_name", "mds_daemon", "seq"]
-        for k in required:
-            if k not in meta:
-                return None, f"sample_meta missing {k} in {rel}"
-        _ = datetime.fromisoformat(str(meta["timestamp"]))
-        ts_unix = float(meta["timestamp_unix"])
-        flat = flatten_perf_dump(perf_dump)
-        return (
-            SampleRecord(
-                experiment_id=exp.experiment_id,
-                experiment_tag=exp.experiment_tag,
-                cluster_name=exp.cluster_name,
-                host=str(meta["host"]),
-                mds_name=str(meta["mds_name"]),
-                mds_daemon=str(meta["mds_daemon"]),
-                timestamp=str(meta["timestamp"]),
-                timestamp_unix=ts_unix,
-                time_offset_sec=ts_unix - exp.start_ts_unix,
-                seq=int(meta["seq"]),
-                source_file=str(rel),
-                flat_metrics=flat,
-            ),
-            None,
-        )
+        if "sample_meta" in raw and "perf_dump" in raw:
+            return _build_sample_from_legacy_raw(exp, str(rel), raw), None
+        return _build_sample_from_raw_tree(exp, str(rel), raw, index_row), None
     except Exception as exc:
         return None, f"failed parsing {rel}: {exc}"
 
@@ -433,6 +535,7 @@ def build_raw_dataframe(experiments: List[Experiment], cfg: AnalysisConfig, erro
 
     df = pd.DataFrame.from_records(records)
     if df.empty:
+        logger.info("Built raw dataframe rows=0")
         return df, {"total_files": total_files, "bad_files": bad_files, "ok_files": total_files - bad_files}
 
     df = df.sort_values(["experiment_id", "mds_daemon", "metric_path", "timestamp_unix", "seq"]).reset_index(drop=True)
@@ -790,7 +893,7 @@ def write_analysis_meta(dirs: Dict[str, Path], cfg: AnalysisConfig, run_status: 
 def main() -> int:
     args = parse_args()
     if MISSING_CORE_DEPS:
-        print(f"Missing core dependencies: {', ' .join(MISSING_CORE_DEPS)}", file=sys.stderr)
+        print(f"Missing core dependencies: {', '.join(MISSING_CORE_DEPS)}", file=sys.stderr)
         return 2
     cfg = build_config(args)
     dirs = setup_output_dirs(cfg.output_dir)
@@ -805,7 +908,6 @@ def main() -> int:
     raw_df, stats = build_raw_dataframe(experiments, cfg, error_logger, logger)
     tidy_df = make_transform_rows(raw_df, cfg, error_logger)
 
-    # export derived per requested group mode + always store per scope for future extension
     for scope in ["per_mds", "per_host", "aggregate"]:
         if scope == "per_mds":
             scope_df = tidy_df
