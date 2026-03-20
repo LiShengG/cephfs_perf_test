@@ -160,6 +160,7 @@ class AnalysisConfig:
     default_plots: str
     reset_policy: str
     max_workers: int
+    plot_window_fraction: Optional[Tuple[float, float]] = None
     config_path: Optional[Path] = None
     gauge_metrics: set[str] = field(default_factory=lambda: set(DEFAULT_GAUGE_METRICS))
     counter_metrics: set[str] = field(default_factory=lambda: set(DEFAULT_COUNTER_METRICS))
@@ -212,6 +213,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--default-plots", default="standard", choices=["none", "standard"])
     p.add_argument("--reset-policy", default="mark", choices=["mark", "drop"])
     p.add_argument("--max-workers", type=int, default=4)
+    p.add_argument("--plot-window-fraction")
     p.add_argument("--config")
     return p.parse_args()
 
@@ -225,6 +227,24 @@ def load_config(path: Optional[str]) -> Dict[str, Any]:
         return yaml.safe_load(f) or {}
 
 
+
+
+def parse_plot_window_fraction(raw: Optional[str]) -> Optional[Tuple[float, float]]:
+    if not raw:
+        return None
+    parts = [x.strip() for x in raw.split(":", 1)]
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise ValueError("--plot-window-fraction must be in START:END format")
+    try:
+        start = float(parts[0])
+        end = float(parts[1])
+    except ValueError as exc:
+        raise ValueError("--plot-window-fraction values must be numeric") from exc
+    if start < 0 or end > 1 or start >= end:
+        raise ValueError("--plot-window-fraction must satisfy 0 <= START < END <= 1")
+    return (start, end)
+
+
 def build_config(args: argparse.Namespace) -> AnalysisConfig:
     cfg_file = load_config(args.config)
     now = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -233,6 +253,7 @@ def build_config(args: argparse.Namespace) -> AnalysisConfig:
     export_formats = parse_csv_list(args.export_formats or cfg_file.get("export_formats"), ["csv", "parquet"])
     plot_formats = parse_csv_list(args.plot_formats or cfg_file.get("plot_formats"), ["png"])
     metrics = parse_csv_list(args.metrics or cfg_file.get("metrics"), DEFAULT_METRICS)
+    plot_window_fraction = parse_plot_window_fraction(args.plot_window_fraction or cfg_file.get("plot_window_fraction"))
     gauge = set(cfg_file.get("gauge_metrics", DEFAULT_GAUGE_METRICS))
     counter = set(cfg_file.get("counter_metrics", DEFAULT_COUNTER_METRICS))
     latency = set(cfg_file.get("latency_bases", DEFAULT_LATENCY_BASES))
@@ -249,6 +270,7 @@ def build_config(args: argparse.Namespace) -> AnalysisConfig:
         default_plots=args.default_plots,
         reset_policy=args.reset_policy,
         max_workers=max(args.max_workers, 1),
+        plot_window_fraction=plot_window_fraction,
         config_path=Path(args.config).resolve() if args.config else None,
         gauge_metrics=gauge,
         counter_metrics=counter,
@@ -805,6 +827,35 @@ def plot_metric_series(df: pd.DataFrame, out_path: Path, title: str, xlabel: str
         return False
 
 
+
+
+def filter_plot_window(df: pd.DataFrame, fraction: Optional[Tuple[float, float]]) -> pd.DataFrame:
+    if df.empty or fraction is None:
+        return df
+
+    start_fraction, end_fraction = fraction
+    frames: List[pd.DataFrame] = []
+
+    for _, exp_df in df.groupby("experiment_id", sort=False):
+        time_series = exp_df["time_offset_sec"].dropna()
+        if time_series.empty:
+            frames.append(exp_df)
+            continue
+        start_time = float(time_series.min())
+        end_time = float(time_series.max())
+        duration = end_time - start_time
+        if duration <= 0:
+            frames.append(exp_df)
+            continue
+        window_start = start_time + duration * start_fraction
+        window_end = start_time + duration * end_fraction
+        frames.append(exp_df[(exp_df["time_offset_sec"] >= window_start) & (exp_df["time_offset_sec"] <= window_end)].copy())
+
+    if not frames:
+        return df.iloc[0:0].copy()
+    return pd.concat(frames, ignore_index=True)
+
+
 def plot_standard_suite(df: pd.DataFrame, cfg: AnalysisConfig, dirs: Dict[str, Path], logger: logging.Logger, error_logger: logging.Logger) -> int:
     if cfg.default_plots == "none" or df.empty:
         return 0
@@ -812,7 +863,9 @@ def plot_standard_suite(df: pd.DataFrame, cfg: AnalysisConfig, dirs: Dict[str, P
     xlabel = "timestamp_unix" if cfg.align_time == "absolute" else "time_offset_sec"
     count = 0
 
-    for exp_id, exp_df in df.groupby("experiment_id"):
+    filtered_df = filter_plot_window(df, cfg.plot_window_fraction)
+
+    for exp_id, exp_df in filtered_df.groupby("experiment_id"):
         exp_dir = dirs["plots_per_experiment"] / exp_id
         exp_dir.mkdir(parents=True, exist_ok=True)
 
@@ -841,8 +894,8 @@ def plot_standard_suite(df: pd.DataFrame, cfg: AnalysisConfig, dirs: Dict[str, P
                 else:
                     error_logger.warning("plot failed: %s", f)
 
-    if cfg.compare_mode == "overlay" and df["experiment_id"].nunique() > 1:
-        agg_all = aggregate_series(df, "aggregate")
+    if cfg.compare_mode == "overlay" and filtered_df["experiment_id"].nunique() > 1:
+        agg_all = aggregate_series(filtered_df, "aggregate")
         for metric, transform in STANDARD_AGGREGATE_PLOTS:
             p = agg_all[(agg_all["metric_path"] == metric) & (agg_all["transform"] == transform)]
             if p.empty:
@@ -877,6 +930,7 @@ def write_analysis_meta(dirs: Dict[str, Path], cfg: AnalysisConfig, run_status: 
             "default_plots": cfg.default_plots,
             "reset_policy": cfg.reset_policy,
             "max_workers": cfg.max_workers,
+            "plot_window_fraction": list(cfg.plot_window_fraction) if cfg.plot_window_fraction else None,
             "config": str(cfg.config_path) if cfg.config_path else None,
         },
         "input_runs": len(run_status),
