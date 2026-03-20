@@ -75,6 +75,8 @@ PID_C=""
 RC_A=0
 RC_B=0
 RC_C=0
+REMOTE_MDS_COLLECTORS_STARTED=0
+REMOTE_MDS_COLLECTORS_STOPPED=0
 
 declare -a MDS_HOSTS=()
 
@@ -179,10 +181,22 @@ cleanup_on_signal() {
       kill -9 "$pid" 2>/dev/null || true
     fi
   done
+  stop_remote_mds_collectors
   exit 130
 }
 
+cleanup_on_exit() {
+  local rc=$?
+
+  if [ "$COLLECT_MDS_METRICS" -eq 1 ]; then
+    stop_remote_mds_collectors
+  fi
+
+  return "$rc"
+}
+
 trap cleanup_on_signal INT TERM
+trap cleanup_on_exit EXIT
 
 load_ceph_hosts() {
   local host_file="$1"
@@ -224,21 +238,36 @@ push_mds_collector() {
 start_remote_mds_collectors() {
   local remote_dir="${MDS_REMOTE_BASE}/${RUN_TAG}"
   local host
+  local started=0
+
   for host in "${MDS_HOSTS[@]}"; do
-    if ! remote_mds_cmd "$host" "nohup bash '${remote_dir}/${MDS_COLLECTOR_SCRIPT}' --output-dir '${remote_dir}/data' --interval '${MDS_INTERVAL}' --tag '${RUN_TAG}' >'${remote_dir}/collector.stdout.log' 2>'${remote_dir}/collector.stderr.log' < /dev/null & echo \$! > '${remote_dir}/collector.pid'"; then
+    if ! remote_mds_cmd "$host" "remote_dir='${remote_dir}'; collector='${remote_dir}/${MDS_COLLECTOR_SCRIPT}'; stdout_log='${remote_dir}/collector.stdout.log'; stderr_log='${remote_dir}/collector.stderr.log'; pid_file='${remote_dir}/collector.pid'; pgid_file='${remote_dir}/collector.pgid'; rm -f "\$pid_file" "\$pgid_file"; nohup setsid bash "\$collector" --output-dir '${remote_dir}/data' --interval '${MDS_INTERVAL}' --tag '${RUN_TAG}' >"\$stdout_log" 2>"\$stderr_log" < /dev/null & pid=\$!; printf '%s\n' "\$pid" > "\$pid_file"; ps -o pgid= -p "\$pid" | tr -d ' ' > "\$pgid_file""; then
       warn "远程启动采集器失败: ${host}"
     else
+      started=1
       log "远程采集器已启动: ${host}"
     fi
   done
+
+  REMOTE_MDS_COLLECTORS_STARTED=$started
+  REMOTE_MDS_COLLECTORS_STOPPED=0
 }
 
 stop_remote_mds_collectors() {
   local remote_dir="${MDS_REMOTE_BASE}/${RUN_TAG}"
   local host
+
+  if [ "$REMOTE_MDS_COLLECTORS_STARTED" -ne 1 ] || [ "$REMOTE_MDS_COLLECTORS_STOPPED" -eq 1 ]; then
+    return 0
+  fi
+
   for host in "${MDS_HOSTS[@]}"; do
-    remote_mds_cmd "$host" "if [ -f '${remote_dir}/collector.pid' ]; then pid=\$(cat '${remote_dir}/collector.pid'); kill -TERM \"\$pid\" 2>/dev/null || true; fi" || warn "停止远程采集器失败: ${host}"
+    if ! remote_mds_cmd "$host" "remote_dir='${remote_dir}'; pid_file='${remote_dir}/collector.pid'; pgid_file='${remote_dir}/collector.pgid'; collector='${remote_dir}/${MDS_COLLECTOR_SCRIPT}'; pid=''; pgid=''; if [ -f "\$pid_file" ]; then pid=\$(cat "\$pid_file" 2>/dev/null); fi; if [ -f "\$pgid_file" ]; then pgid=\$(cat "\$pgid_file" 2>/dev/null); fi; if [ -n "\$pid" ]; then kill -TERM "\$pid" 2>/dev/null || true; fi; if [ -n "\$pgid" ]; then kill -TERM -"\$pgid" 2>/dev/null || true; fi; sleep 1; if [ -n "\$pid" ] && kill -0 "\$pid" 2>/dev/null; then kill -KILL "\$pid" 2>/dev/null || true; fi; if [ -n "\$pgid" ]; then kill -KILL -"\$pgid" 2>/dev/null || true; fi; pkill -f -x "bash ${remote_dir}/${MDS_COLLECTOR_SCRIPT} --output-dir ${remote_dir}/data --interval ${MDS_INTERVAL} --tag ${RUN_TAG}" 2>/dev/null || true"; then
+      warn "停止远程采集器失败: ${host}"
+    fi
   done
+
+  REMOTE_MDS_COLLECTORS_STOPPED=1
 }
 
 fetch_remote_mds_metrics() {
@@ -254,7 +283,7 @@ fetch_remote_mds_metrics() {
 
     mkdir -p "$local_host_dir"
 
-    if ! remote_mds_cmd "$host" "tar -C '${remote_dir}' -czf '${remote_tar}' data collector.stdout.log collector.stderr.log collector.pid 2>/dev/null || tar -C '${remote_dir}' -czf '${remote_tar}' data"; then
+    if ! remote_mds_cmd "$host" "tar -C '${remote_dir}' -czf '${remote_tar}' data collector.stdout.log collector.stderr.log collector.pid collector.pgid 2>/dev/null || tar -C '${remote_dir}' -czf '${remote_tar}' data"; then
       warn "远程打包失败: ${host}"
       continue
     fi
