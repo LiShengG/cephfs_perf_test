@@ -24,7 +24,7 @@ MPI_PREFIX="/usr/lib64/openmpi"
 # NP_PER_TENANT=64
 # FILES_PER_PROC=50000
 # ITERATIONS=3
-NP_PER_TENANT=32
+NP_PER_TENANT=64
 FILES_PER_PROC=10000
 ITERATIONS=3
 MDTEST_ARGS="-F -C -T -r -R -u -w 4K -e 4K"
@@ -64,7 +64,7 @@ COLLECT_MDS_METRICS=1
 CEPH_HOST_FILE="ceph_host"
 MDS_COLLECTOR_SCRIPT="collect_mds_perf_raw.sh"
 MDS_REMOTE_BASE="/tmp/mds_metrics"
-MDS_INTERVAL=30
+MDS_INTERVAL=20
 
 # --------------------------------------
 # 内部变量

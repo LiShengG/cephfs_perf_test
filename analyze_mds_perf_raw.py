@@ -46,6 +46,7 @@ except Exception:  # optional
 DEFAULT_GAUGE_METRICS = {
     "mds.q",
     "mds.inodes",
+    "mds.root_rfiles",
     "mds.inodes_pinned",
     "mds.inodes_with_caps",
     "mds.caps",
@@ -74,7 +75,6 @@ DEFAULT_COUNTER_METRICS = {
     "mds.exported_inodes",
     "mds.imported",
     "mds.imported_inodes",
-    "mds.root_rfiles",
     "mds_cache.strays_created",
     "mds_cache.strays_enqueued",
     "mds_log.evadd",
@@ -105,9 +105,11 @@ DEFAULT_METRICS = sorted(
         "mds.request",
         "mds.reply",
         "mds.forward",
+        "mds.dir_fetch",
         "mds.openino_peer_discover",
         "mds.traverse",
         "mds_cache.strays_created",
+        "mds.root_rfiles",
         "mds_mem.rss",
         "mds.q",
         "mds_server.req_lookup_latency",
@@ -121,9 +123,11 @@ STANDARD_PER_MDS_PLOTS = [
     ("mds.request", "rate"),
     ("mds.reply", "rate"),
     ("mds.forward", "rate"),
+    ("mds.dir_fetch", "rate"),
     ("mds.openino_peer_discover", "rate"),
     ("mds.traverse", "rate"),
     ("mds_cache.strays_created", "rate"),
+    ("mds.root_rfiles", "rate"),
     ("mds_mem.rss", "raw"),
     ("mds.q", "raw"),
     ("mds_server.req_lookup_latency", "period_avg"),
@@ -137,8 +141,6 @@ STANDARD_AGGREGATE_PLOTS = [
     ("mds.reply", "rate"),
     ("mds_cache.strays_created", "rate"),
     ("mds_mem.rss", "raw"),
-    ("mds_server.req_lookupino_latency", "period_avg"),
-    ("mds_server.req_unlink_latency", "period_avg"),
 ]
 
 RAW_TS_RE = re.compile(r"_(\d{8}T\d{6}[+-]\d{4})\.json$")
