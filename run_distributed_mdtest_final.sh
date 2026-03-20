@@ -24,11 +24,20 @@ MPI_PREFIX="/usr/lib64/openmpi"
 # NP_PER_TENANT=64
 # FILES_PER_PROC=50000
 # ITERATIONS=3
-NP_PER_TENANT=16
-FILES_PER_PROC=5000
-ITERATIONS=1
-MDTEST_ARGS="-F -C -T -r -R -u"
+NP_PER_TENANT=64
+FILES_PER_PROC=10000
+ITERATIONS=3
+MDTEST_ARGS="-F -C -T -r -R -u -w 4K -e 4K"
+# -F -C -T -r -R -u -w 4K   -e 4K
+# -F -C -T -r -R -u -w 16K  -e 16K
+# -F -C -T -r -R -u -w 64K  -e 64K
+# -F -C -T -r -R -u -w 256K -e 256K
+# -F -C -T -r -R -u -w 1M   -e 1M
+# -F -C -T -r -R -u -w 4M   -e 4M
+# -F -C -T -r -R -u -w 16M  -e 16M
 # -F -C -T -r -R -u -U
+# Dir Pin
+# MDS Num: 3
 
 # 三个 hostfile（已拆分）
 HOSTFILE_A="mpi_hosts_a"
@@ -53,9 +62,9 @@ COLLECT_CEPH_STATUS=1
 # MDS 指标采集控制
 COLLECT_MDS_METRICS=1
 CEPH_HOST_FILE="ceph_host"
-MDS_COLLECTOR_SCRIPT="collect_mds_metrics.sh"
+MDS_COLLECTOR_SCRIPT="collect_mds_perf_raw.sh"
 MDS_REMOTE_BASE="/tmp/mds_metrics"
-MDS_INTERVAL=10
+MDS_INTERVAL=20
 
 # --------------------------------------
 # 内部变量
@@ -66,6 +75,8 @@ PID_C=""
 RC_A=0
 RC_B=0
 RC_C=0
+REMOTE_MDS_COLLECTORS_STARTED=0
+REMOTE_MDS_COLLECTORS_STOPPED=0
 
 declare -a MDS_HOSTS=()
 
@@ -108,6 +119,55 @@ check_exec() {
   [ -x "$f" ] || fail "不可执行或不存在: $f"
 }
 
+get_hosts_from_hostfile() {
+  local hostfile="$1"
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*$/ { next }
+    {
+      host=$1
+      sub(/,.*/, "", host)
+      if (host != "") print host
+    }
+  ' "$hostfile" | sort -u
+}
+
+is_local_host() {
+  local host="$1"
+  local short_host fqdn_host
+  short_host="$(hostname -s 2>/dev/null || true)"
+  fqdn_host="$(hostname -f 2>/dev/null || true)"
+
+  case "$host" in
+    localhost|127.0.0.1|::1)
+      return 0
+      ;;
+  esac
+
+  if [ -n "$short_host" ] && [ "$host" = "$short_host" ]; then
+    return 0
+  fi
+
+  if [ -n "$fqdn_host" ] && [ "$host" = "$fqdn_host" ]; then
+    return 0
+  fi
+
+  if hostname -I 2>/dev/null | tr ' ' '\n' | grep -Fxq "$host"; then
+    return 0
+  fi
+
+  return 1
+}
+
+remote_client_cmd() {
+  local host="$1"
+  shift
+  ssh -o BatchMode=yes -o ConnectTimeout=10 \
+      -o StrictHostKeyChecking=no \
+      -o UserKnownHostsFile=/dev/null \
+      "root@${host}" "$@"
+}
+
 cleanup_on_signal() {
   warn "捕获到中断信号，终止后台压测任务..."
   for pid in "$PID_A" "$PID_B" "$PID_C"; do
@@ -121,10 +181,22 @@ cleanup_on_signal() {
       kill -9 "$pid" 2>/dev/null || true
     fi
   done
+  stop_remote_mds_collectors
   exit 130
 }
 
+cleanup_on_exit() {
+  local rc=$?
+
+  if [ "$COLLECT_MDS_METRICS" -eq 1 ]; then
+    stop_remote_mds_collectors
+  fi
+
+  return "$rc"
+}
+
 trap cleanup_on_signal INT TERM
+trap cleanup_on_exit EXIT
 
 load_ceph_hosts() {
   local host_file="$1"
@@ -166,21 +238,36 @@ push_mds_collector() {
 start_remote_mds_collectors() {
   local remote_dir="${MDS_REMOTE_BASE}/${RUN_TAG}"
   local host
+  local started=0
+
   for host in "${MDS_HOSTS[@]}"; do
-    if ! remote_mds_cmd "$host" "nohup bash '${remote_dir}/${MDS_COLLECTOR_SCRIPT}' --outdir '${remote_dir}/data' --interval '${MDS_INTERVAL}' >'${remote_dir}/collector.stdout.log' 2>'${remote_dir}/collector.stderr.log' < /dev/null & echo \$! > '${remote_dir}/collector.pid'"; then
+    if ! remote_mds_cmd "$host" "remote_dir='${remote_dir}'; collector='${remote_dir}/${MDS_COLLECTOR_SCRIPT}'; stdout_log='${remote_dir}/collector.stdout.log'; stderr_log='${remote_dir}/collector.stderr.log'; pid_file='${remote_dir}/collector.pid'; pgid_file='${remote_dir}/collector.pgid'; rm -f "\$pid_file" "\$pgid_file"; nohup setsid bash "\$collector" --output-dir '${remote_dir}/data' --interval '${MDS_INTERVAL}' --tag '${RUN_TAG}' >"\$stdout_log" 2>"\$stderr_log" < /dev/null & pid=\$!; printf '%s\n' "\$pid" > "\$pid_file"; ps -o pgid= -p "\$pid" | tr -d ' ' > "\$pgid_file""; then
       warn "远程启动采集器失败: ${host}"
     else
+      started=1
       log "远程采集器已启动: ${host}"
     fi
   done
+
+  REMOTE_MDS_COLLECTORS_STARTED=$started
+  REMOTE_MDS_COLLECTORS_STOPPED=0
 }
 
 stop_remote_mds_collectors() {
   local remote_dir="${MDS_REMOTE_BASE}/${RUN_TAG}"
   local host
+
+  if [ "$REMOTE_MDS_COLLECTORS_STARTED" -ne 1 ] || [ "$REMOTE_MDS_COLLECTORS_STOPPED" -eq 1 ]; then
+    return 0
+  fi
+
   for host in "${MDS_HOSTS[@]}"; do
-    remote_mds_cmd "$host" "if [ -f '${remote_dir}/collector.pid' ]; then pid=\$(cat '${remote_dir}/collector.pid'); kill -TERM \"\$pid\" 2>/dev/null || true; fi" || warn "停止远程采集器失败: ${host}"
+    if ! remote_mds_cmd "$host" "remote_dir='${remote_dir}'; pid_file='${remote_dir}/collector.pid'; pgid_file='${remote_dir}/collector.pgid'; collector='${remote_dir}/${MDS_COLLECTOR_SCRIPT}'; pid=''; pgid=''; if [ -f "\$pid_file" ]; then pid=\$(cat "\$pid_file" 2>/dev/null); fi; if [ -f "\$pgid_file" ]; then pgid=\$(cat "\$pgid_file" 2>/dev/null); fi; if [ -n "\$pid" ]; then kill -TERM "\$pid" 2>/dev/null || true; fi; if [ -n "\$pgid" ]; then kill -TERM -"\$pgid" 2>/dev/null || true; fi; sleep 1; if [ -n "\$pid" ] && kill -0 "\$pid" 2>/dev/null; then kill -KILL "\$pid" 2>/dev/null || true; fi; if [ -n "\$pgid" ]; then kill -KILL -"\$pgid" 2>/dev/null || true; fi; pkill -f -x "bash ${remote_dir}/${MDS_COLLECTOR_SCRIPT} --output-dir ${remote_dir}/data --interval ${MDS_INTERVAL} --tag ${RUN_TAG}" 2>/dev/null || true"; then
+      warn "停止远程采集器失败: ${host}"
+    fi
   done
+
+  REMOTE_MDS_COLLECTORS_STOPPED=1
 }
 
 fetch_remote_mds_metrics() {
@@ -196,7 +283,7 @@ fetch_remote_mds_metrics() {
 
     mkdir -p "$local_host_dir"
 
-    if ! remote_mds_cmd "$host" "tar -C '${remote_dir}' -czf '${remote_tar}' data collector.stdout.log collector.stderr.log collector.pid 2>/dev/null || tar -C '${remote_dir}' -czf '${remote_tar}' data"; then
+    if ! remote_mds_cmd "$host" "tar -C '${remote_dir}' -czf '${remote_tar}' data collector.stdout.log collector.stderr.log collector.pid collector.pgid 2>/dev/null || tar -C '${remote_dir}' -czf '${remote_tar}' data"; then
       warn "远程打包失败: ${host}"
       continue
     fi
@@ -333,8 +420,36 @@ collect_ceph_status() {
 # 测试目录准备
 # --------------------------------------
 prepare_test_dir() {
-  local d="$1"
-  mkdir -p "$d" || fail "无法创建测试目录: $d"
+  local tenant="$1"
+  local hostfile="$2"
+  local d="$3"
+  local host
+  local ok_count=0
+
+  while IFS= read -r host; do
+    [ -z "$host" ] && continue
+
+    if is_local_host "$host"; then
+      if mkdir -p "$d"; then
+        log "${tenant}: 本地创建测试目录成功: ${d}"
+        ok_count=$((ok_count + 1))
+      else
+        warn "${tenant}: 本地创建测试目录失败: ${d}"
+      fi
+      continue
+    fi
+
+    if remote_client_cmd "$host" "mkdir -p '$d'"; then
+      log "${tenant}: 远程创建测试目录成功: ${host}:${d}"
+      ok_count=$((ok_count + 1))
+    else
+      warn "${tenant}: 远程创建测试目录失败: ${host}:${d}"
+    fi
+  done < <(get_hosts_from_hostfile "$hostfile")
+
+  if [ "$ok_count" -eq 0 ]; then
+    fail "${tenant}: 未能在任何客户端节点创建测试目录: ${d}"
+  fi
 }
 
 # --------------------------------------
@@ -502,9 +617,9 @@ main() {
   check_hostfile_capacity "$HOSTFILE_B" "Tenant_B"
   check_hostfile_capacity "$HOSTFILE_C" "Tenant_C"
 
-  prepare_test_dir "$TENANT_A_DIR"
-  prepare_test_dir "$TENANT_B_DIR"
-  prepare_test_dir "$TENANT_C_DIR"
+  prepare_test_dir "Tenant_A" "$HOSTFILE_A" "$TENANT_A_DIR"
+  prepare_test_dir "Tenant_B" "$HOSTFILE_B" "$TENANT_B_DIR"
+  prepare_test_dir "Tenant_C" "$HOSTFILE_C" "$TENANT_C_DIR"
 
   collect_ceph_status "before"
 
