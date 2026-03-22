@@ -1,0 +1,46 @@
+{
+  "metrics": [
+    {
+      "key": "cpu_pct",
+      "label": "CPU Usage",
+      "source": "proc_stat_series.tsv",
+      "unit": "%"
+    },
+    {
+      "key": "rss_kb",
+      "label": "RSS Memory",
+      "source": "proc_stat_series.tsv",
+      "unit": "KB"
+    },
+    {
+      "key": "read_bytes",
+      "label": "Read Bytes",
+      "source": "proc_stat_series.tsv",
+      "unit": "bytes"
+    },
+    {
+      "key": "write_bytes",
+      "label": "Write Bytes",
+      "source": "proc_stat_series.tsv",
+      "unit": "bytes"
+    },
+    {
+      "key": "mds.request",
+      "label": "MDS Request",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.reply",
+      "label": "MDS Reply",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.reply_latency",
+      "label": "Reply Latency",
+      "source": "perf_dump",
+      "unit": "latency"
+    }
+  ]
+}

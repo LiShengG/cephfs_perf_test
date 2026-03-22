@@ -1,0 +1,14 @@
+{
+  "run_id": "DIR_PIN_MDS_20260322_123131",
+  "run_name": "DIR_PIN_MDS_20260322_123131",
+  "config_name": "DIR_PIN_MDS",
+  "status": "failed",
+  "started_at": "2026-03-22T12:31:31",
+  "ended_at": "2026-03-22T12:31:44",
+  "pid": 12748,
+  "return_code": 3221225786,
+  "result_dir": "D:\\code\\cephfs_perf_test\\data\\runs\\DIR_PIN_MDS\\DIR_PIN_MDS_20260322_123131\\results",
+  "stdout_log": "D:\\code\\cephfs_perf_test\\data\\runs\\DIR_PIN_MDS\\DIR_PIN_MDS_20260322_123131\\logs\\stdout.log",
+  "stderr_log": "D:\\code\\cephfs_perf_test\\data\\runs\\DIR_PIN_MDS\\DIR_PIN_MDS_20260322_123131\\logs\\stderr.log",
+  "config_snapshot": "D:\\code\\cephfs_perf_test\\data\\runs\\DIR_PIN_MDS\\DIR_PIN_MDS_20260322_123131\\test.conf.json"
+}

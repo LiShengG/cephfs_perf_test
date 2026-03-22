@@ -1,0 +1,10 @@
+{
+  "host": "0.0.0.0",
+  "port": 18080,
+  "data_dir": "data",
+  "configs_dir": "data/configs",
+  "runs_dir": "data/runs",
+  "state_dir": "data/state",
+  "scripts_dir": ".",
+  "run_lock_file": "data/state/current_run.json"
+}

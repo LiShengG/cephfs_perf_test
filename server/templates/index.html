@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CephFS Experiment Manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h1>Configs</h1>
+          <button id="refresh-tree-btn" class="ghost-btn" type="button">Refresh</button>
+        </div>
+        <div id="experiment-tree" class="tree"></div>
+      </aside>
+
+      <main class="content">
+        <section class="panel panel-top">
+          <div class="panel-header">
+            <h2>Config Editor</h2>
+            <div class="actions">
+              <button id="new-config-btn" type="button">New</button>
+              <button id="save-config-btn" type="button">Save</button>
+              <button id="rename-config-btn" type="button">Rename</button>
+              <button id="delete-config-btn" class="danger" type="button">Delete</button>
+            </div>
+          </div>
+          <div class="status-bar">
+            <span id="active-config-label">Current Config: None</span>
+            <span id="message"></span>
+          </div>
+          <textarea id="config-editor" spellcheck="false"></textarea>
+        </section>
+
+        <section class="panel panel-middle">
+          <div class="panel-header">
+            <h2>Run Control</h2>
+            <div class="actions">
+              <button id="start-run-btn" type="button" disabled>Start</button>
+              <button id="stop-run-btn" class="danger" type="button" disabled>Stop</button>
+            </div>
+          </div>
+          <div class="run-status-grid">
+            <div class="placeholder-card">
+              <h3>Current Run</h3>
+              <pre id="current-run-box" class="data-box">No active experiment</pre>
+            </div>
+            <div class="placeholder-card">
+              <h3>Config Snapshot</h3>
+              <pre id="snapshot-box" class="data-box">Select a run to view its config snapshot</pre>
+            </div>
+            <div class="placeholder-card">
+              <h3>Parsed Summary</h3>
+              <pre id="summary-json-box" class="data-box">Select a run to view parsed summary</pre>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel panel-bottom">
+          <div class="panel-header">
+            <h2>Run Detail</h2>
+            <div class="actions">
+              <select id="metric-select"></select>
+              <button id="add-chart-btn" type="button">Add Chart</button>
+            </div>
+          </div>
+          <div class="detail-grid">
+            <div class="placeholder-card detail-wide">
+              <h3>Raw Summary</h3>
+              <pre id="summary-text-box" class="data-box tall-box">Select a run to view final_summary.txt</pre>
+            </div>
+            <div class="placeholder-card">
+              <h3>Stdout</h3>
+              <pre id="stdout-box" class="data-box tall-box">Select a run to view stdout</pre>
+            </div>
+            <div class="placeholder-card">
+              <h3>Stderr</h3>
+              <pre id="stderr-box" class="data-box tall-box">Select a run to view stderr</pre>
+            </div>
+          </div>
+          <div id="chart-grid" class="chart-grid"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  </body>
+</html>
