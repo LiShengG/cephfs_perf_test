@@ -85,12 +85,13 @@ export async function stopRun() {
 
 export async function fetchRun(configName, runId) {
   const base = `/api/configs/${encodeURIComponent(configName)}/runs/${encodeURIComponent(runId)}`;
-  const [run, stdout, stderr, summary, snapshot] = await Promise.all([
+  const [run, stdout, stderr, summary, snapshot, analysisNotes] = await Promise.all([
     api(base),
     api(`${base}/logs/stdout`),
     api(`${base}/logs/stderr`),
     api(`${base}/summary`),
     api(`${base}/snapshot`),
+    api(`${base}/analysis-notes`),
   ]);
   return {
     run: run.run,
@@ -98,6 +99,7 @@ export async function fetchRun(configName, runId) {
     stderr: stderr.content,
     summary: summary.summary,
     snapshot: snapshot.snapshot,
+    analysisNotes: analysisNotes.analysis_notes,
   };
 }
 
@@ -110,5 +112,12 @@ export async function fetchMetricSeries(configName, runId, metric) {
 export async function deleteRun(configName, runId) {
   return api(`/api/configs/${encodeURIComponent(configName)}/runs/${encodeURIComponent(runId)}`, {
     method: "DELETE",
+  });
+}
+
+export async function saveAnalysisNotes(configName, runId, text) {
+  return api(`/api/configs/${encodeURIComponent(configName)}/runs/${encodeURIComponent(runId)}/analysis-notes`, {
+    method: "PUT",
+    body: JSON.stringify({ text }),
   });
 }

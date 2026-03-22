@@ -342,6 +342,18 @@ pre {
   line-height: 1.58;
 }
 
+.analysis-editor {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  padding: 14px 16px;
+  line-height: 1.6;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #fffdf8, #fcf6eb);
+  color: var(--text);
+}
+
 pre {
   padding: 14px;
   white-space: pre-wrap;
@@ -385,6 +397,44 @@ pre {
   display: grid;
   grid-template-columns: 1.35fr 1fr 1fr;
   gap: 12px;
+}
+
+.analysis-editor-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.analysis-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.analysis-helper {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.analysis-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.analysis-state {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.analysis-state-clean {
+  color: var(--teal);
+}
+
+.analysis-state-dirty {
+  color: var(--accent-strong);
 }
 
 .detail-body pre {
@@ -444,6 +494,15 @@ pre {
   border: 1px solid var(--line);
   border-radius: 16px;
   background: #fffdfa;
+}
+
+.chart-coordinates {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .chart-empty {

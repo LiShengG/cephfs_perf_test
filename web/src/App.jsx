@@ -13,6 +13,7 @@ import {
   fetchMetricSeries,
   fetchRun,
   renameConfig,
+  saveAnalysisNotes,
   saveConfig,
   startRun,
   stopRun,
@@ -46,6 +47,10 @@ export default function App() {
   const [selectedMetric, setSelectedMetric] = useState("");
   const [chartCards, setChartCards] = useState([]);
   const [chartSeries, setChartSeries] = useState({});
+  const [analysisNotes, setAnalysisNotes] = useState("");
+  const [savedAnalysisNotes, setSavedAnalysisNotes] = useState("");
+  const [analysisNotesSavedAt, setAnalysisNotesSavedAt] = useState(null);
+  const [analysisNotesSaving, setAnalysisNotesSaving] = useState(false);
   const { message, error, setMessage } = useMessage();
 
   const metricOptions = useMemo(() => metricsSchema || [], [metricsSchema]);
@@ -58,7 +63,21 @@ export default function App() {
     setSummaryText(payload.summary.summary_text || "");
     setSummaryJson(payload.summary.summary_json || null);
     setSnapshot(payload.snapshot || null);
+    setAnalysisNotes(payload.analysisNotes?.text || "");
+    setSavedAnalysisNotes(payload.analysisNotes?.text || "");
+    setAnalysisNotesSavedAt(payload.analysisNotes?.updated_at || null);
     return payload;
+  }
+
+  async function persistAnalysisNotes(configName, runId, text) {
+    setAnalysisNotesSaving(true);
+    try {
+      const payload = await saveAnalysisNotes(configName, runId, text);
+      setSavedAnalysisNotes(payload.analysis_notes.text || "");
+      setAnalysisNotesSavedAt(payload.analysis_notes.updated_at || null);
+    } finally {
+      setAnalysisNotesSaving(false);
+    }
   }
 
   async function refreshChartSeries(configName, runId, metricsToRefresh = chartCards) {
@@ -111,6 +130,10 @@ export default function App() {
       const initialMetric = selectedMetric || metricOptions[0]?.key || "";
       setChartCards([]);
       setChartSeries({});
+      setAnalysisNotes("");
+      setSavedAnalysisNotes("");
+      setAnalysisNotesSavedAt(null);
+      setAnalysisNotesSaving(false);
       await refreshRunDetail(configName, runId);
 
       if (initialMetric) {
@@ -201,6 +224,10 @@ export default function App() {
         setSnapshot(null);
         setChartCards([]);
         setChartSeries({});
+        setAnalysisNotes("");
+        setSavedAnalysisNotes("");
+        setAnalysisNotesSavedAt(null);
+        setAnalysisNotesSaving(false);
       }
       const payload = await refreshConfigs();
       if (payload.configs.length) {
@@ -227,6 +254,10 @@ export default function App() {
         setSnapshot(null);
         setChartCards([]);
         setChartSeries({});
+        setAnalysisNotes("");
+        setSavedAnalysisNotes("");
+        setAnalysisNotesSavedAt(null);
+        setAnalysisNotesSaving(false);
       }
       await refreshConfigs();
       await refreshCurrentRun();
@@ -288,6 +319,19 @@ export default function App() {
     });
   }
 
+  async function handleSaveAnalysisNotes() {
+    if (!viewedRun?.configName || !viewedRun?.runId) {
+      setMessage("Load a run first", true);
+      return;
+    }
+    try {
+      await persistAnalysisNotes(viewedRun.configName, viewedRun.runId, analysisNotes);
+      setMessage(`Saved analysis notes for ${viewedRun.runId}`);
+    } catch (err) {
+      setMessage(err.message, true);
+    }
+  }
+
   useEffect(() => {
     let alive = true;
 
@@ -342,6 +386,24 @@ export default function App() {
     };
   }, [viewedRun?.configName, viewedRun?.runId, chartCards]);
 
+  useEffect(() => {
+    if (!viewedRun?.configName || !viewedRun?.runId) {
+      return undefined;
+    }
+    if (analysisNotes === savedAnalysisNotes) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      persistAnalysisNotes(viewedRun.configName, viewedRun.runId, analysisNotes)
+        .catch((err) => setMessage(err.message, true));
+    }, 700);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [viewedRun?.configName, viewedRun?.runId, analysisNotes, savedAnalysisNotes]);
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -384,6 +446,12 @@ export default function App() {
           chartCards={chartCards}
           chartSeries={chartSeries}
           onRemoveChart={handleRemoveChart}
+          analysisNotes={analysisNotes}
+          onAnalysisNotesChange={setAnalysisNotes}
+          analysisNotesSavedAt={analysisNotesSavedAt}
+          analysisNotesSaving={analysisNotesSaving}
+          analysisNotesDirty={analysisNotes !== savedAnalysisNotes}
+          onSaveAnalysisNotes={handleSaveAnalysisNotes}
         />
       </main>
     </div>

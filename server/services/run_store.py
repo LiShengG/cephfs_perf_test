@@ -200,6 +200,30 @@ class RunStore:
             payload["summary_json"] = load_json(summary_json_path)
         return payload
 
+    def read_analysis_notes(self, config_name: str, run_id: str) -> dict[str, Any]:
+        run_dir = self.runs_dir / config_name / run_id
+        if not run_dir.exists():
+            raise FileNotFoundError(run_id)
+        path = run_dir / "analysis_notes.json"
+        if not path.exists():
+            return {"text": "", "updated_at": None}
+        payload = load_json(path)
+        return {
+            "text": str(payload.get("text", "")),
+            "updated_at": payload.get("updated_at"),
+        }
+
+    def write_analysis_notes(self, config_name: str, run_id: str, text: str) -> dict[str, Any]:
+        run_dir = self.runs_dir / config_name / run_id
+        if not run_dir.exists():
+            raise FileNotFoundError(run_id)
+        payload = {
+            "text": text,
+            "updated_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        dump_json(run_dir / "analysis_notes.json", payload)
+        return payload
+
     def _create_run_context(self, config_name: str, config_payload: dict[str, Any]) -> RunContext:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_id = f"{config_name}_{timestamp}"

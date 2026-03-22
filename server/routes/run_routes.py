@@ -100,3 +100,23 @@ def read_snapshot(config_name: str, run_id: str):
     except FileNotFoundError:
         return _json_error("snapshot not found", HTTPStatus.NOT_FOUND)
     return jsonify({"ok": True, "snapshot": payload})
+
+
+@run_bp.get("/api/configs/<config_name>/runs/<run_id>/analysis-notes")
+def read_analysis_notes(config_name: str, run_id: str):
+    try:
+        payload = store.read_analysis_notes(config_name, run_id)
+    except FileNotFoundError:
+        return _json_error("run not found", HTTPStatus.NOT_FOUND)
+    return jsonify({"ok": True, "analysis_notes": payload})
+
+
+@run_bp.put("/api/configs/<config_name>/runs/<run_id>/analysis-notes")
+def write_analysis_notes(config_name: str, run_id: str):
+    body = request.get_json(silent=True) or {}
+    text = str(body.get("text", ""))
+    try:
+        payload = store.write_analysis_notes(config_name, run_id, text)
+    except FileNotFoundError:
+        return _json_error("run not found", HTTPStatus.NOT_FOUND)
+    return jsonify({"ok": True, "analysis_notes": payload})

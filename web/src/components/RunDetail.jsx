@@ -21,6 +21,12 @@ export default function RunDetail({
   chartCards,
   chartSeries,
   onRemoveChart,
+  analysisNotes,
+  onAnalysisNotesChange,
+  analysisNotesSavedAt,
+  analysisNotesSaving,
+  analysisNotesDirty,
+  onSaveAnalysisNotes,
 }) {
   return (
     <>
@@ -72,10 +78,40 @@ export default function RunDetail({
                     Remove
                   </button>
                 </div>
-                <LineChart data={chartSeries[metricKey]} />
+                <LineChart data={chartSeries[metricKey]} xAxisLabel="Time" yAxisLabel={metric.label || metricKey} />
               </div>
             );
           })}
+        </div>
+      </CollapsiblePanel>
+      <CollapsiblePanel eyebrow="Notes" title="Experiment Conclusion Analysis" defaultOpen={false} className="panel-detail">
+        <div className="analysis-editor-shell">
+          <div className="analysis-toolbar">
+            <p className="analysis-helper">
+              Record conclusions, anomalies, bottlenecks, and next-step actions for the current experiment run.
+            </p>
+            <div className="analysis-actions">
+              <span className={`analysis-state ${analysisNotesDirty ? "analysis-state-dirty" : "analysis-state-clean"}`}>
+                {analysisNotesSaving
+                  ? "Saving..."
+                  : analysisNotesDirty
+                    ? "Unsaved changes"
+                    : analysisNotesSavedAt
+                      ? `Saved at ${analysisNotesSavedAt}`
+                      : "Not saved yet for this run"}
+              </span>
+              <button type="button" onClick={onSaveAnalysisNotes} disabled={analysisNotesSaving || !analysisNotesDirty}>
+                Save
+              </button>
+            </div>
+          </div>
+          <textarea
+            className="analysis-editor"
+            spellCheck="false"
+            value={analysisNotes}
+            onChange={(event) => onAnalysisNotesChange(event.target.value)}
+            placeholder="Write experiment conclusions and analysis notes here..."
+          />
         </div>
       </CollapsiblePanel>
     </>
