@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -53,6 +54,7 @@ class ConfigStore:
         app_config = read_app_config()
         self.configs_dir = (REPO_ROOT / app_config["configs_dir"]).resolve()
         self.runs_dir = (REPO_ROOT / app_config["runs_dir"]).resolve()
+        self.lock_file = (REPO_ROOT / app_config["run_lock_file"]).resolve()
         self.configs_dir.mkdir(parents=True, exist_ok=True)
         self.runs_dir.mkdir(parents=True, exist_ok=True)
 
@@ -111,13 +113,18 @@ class ConfigStore:
         if old_run_dir.exists() and not new_run_dir.exists():
             old_run_dir.rename(new_run_dir)
 
-    def delete_config(self, name: str) -> None:
+    def delete_config(self, name: str, force: bool = False) -> None:
         path = self.get_config_path(name)
         if not path.exists():
             raise FileNotFoundError(name)
         run_dir = self.runs_dir / name
         if run_dir.exists() and any(run_dir.iterdir()):
-            raise ConfigValidationError("config has experiment runs and cannot be deleted")
+            if not force:
+                raise ConfigValidationError("config has experiment runs and cannot be deleted without force")
+            if self._has_active_run(name):
+                raise ConfigValidationError("config has a running experiment and cannot be deleted")
+        if run_dir.exists():
+            shutil.rmtree(run_dir)
         path.unlink()
 
     def experiment_tree(self) -> list[dict[str, Any]]:
@@ -173,3 +180,9 @@ class ConfigStore:
         for char in name:
             if not (char.isalnum() or char in {"_", "-"}):
                 raise ConfigValidationError("config name only supports letters, digits, '_' and '-'")
+
+    def _has_active_run(self, config_name: str) -> bool:
+        if not self.lock_file.exists():
+            return False
+        payload = load_json(self.lock_file)
+        return payload.get("config_name") == config_name

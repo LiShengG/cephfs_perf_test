@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import signal
 import subprocess
 import threading
@@ -161,6 +162,15 @@ class RunStore:
             if meta_path.exists():
                 runs.append(load_json(meta_path))
         return runs
+
+    def delete_run(self, config_name: str, run_id: str) -> None:
+        run_dir = self.runs_dir / config_name / run_id
+        if not run_dir.exists():
+            raise FileNotFoundError(run_id)
+        current = self.current_run()
+        if current and current.get("config_name") == config_name and current.get("run_id") == run_id:
+            raise RunStateError("cannot delete a running experiment")
+        shutil.rmtree(run_dir)
 
     def read_log(self, config_name: str, run_id: str, log_type: str) -> str:
         filename = "stdout.log" if log_type == "stdout" else "stderr.log"

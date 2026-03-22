@@ -1,46 +1,58 @@
 {
   "metrics": [
     {
-      "key": "cpu_pct",
-      "label": "CPU Usage",
-      "source": "proc_stat_series.tsv",
+      "key": "cpu_percent",
+      "label": "CPU 使用率",
+      "source": "proc_stat",
       "unit": "%"
     },
     {
-      "key": "rss_kb",
-      "label": "RSS Memory",
-      "source": "proc_stat_series.tsv",
-      "unit": "KB"
+      "key": "memory_mb",
+      "label": "内存使用",
+      "source": "proc_stat",
+      "unit": "MB"
     },
     {
-      "key": "read_bytes",
-      "label": "Read Bytes",
-      "source": "proc_stat_series.tsv",
+      "key": "io_read_bytes",
+      "label": "IO 读取字节",
+      "source": "proc_stat",
       "unit": "bytes"
     },
     {
-      "key": "write_bytes",
-      "label": "Write Bytes",
-      "source": "proc_stat_series.tsv",
+      "key": "io_write_bytes",
+      "label": "IO 写入字节",
+      "source": "proc_stat",
       "unit": "bytes"
     },
     {
-      "key": "mds.request",
-      "label": "MDS Request",
+      "key": "open_files",
+      "label": "打开文件数",
+      "source": "proc_stat",
+      "unit": "count"
+    },
+    {
+      "key": "server.handle_client_request",
+      "label": "MDS 请求处理",
       "source": "perf_dump",
       "unit": "count"
     },
     {
-      "key": "mds.reply",
-      "label": "MDS Reply",
+      "key": "server.journal_latency",
+      "label": "日志延迟",
+      "source": "perf_dump",
+      "unit": "sec"
+    },
+    {
+      "key": "mds_cache.num_inodes",
+      "label": "Inode 数量",
       "source": "perf_dump",
       "unit": "count"
     },
     {
-      "key": "mds.reply_latency",
-      "label": "Reply Latency",
+      "key": "mds_cache.num_caps",
+      "label": "Caps 数量",
       "source": "perf_dump",
-      "unit": "latency"
+      "unit": "count"
     }
   ]
 }

@@ -83,8 +83,9 @@ def rename_config(name: str):
 
 @config_bp.delete("/api/configs/<name>")
 def delete_config(name: str):
+    force = str(request.args.get("force", "")).strip().lower() in {"1", "true", "yes"}
     try:
-        store.delete_config(name)
+        store.delete_config(name, force=force)
     except FileNotFoundError:
         return _json_error("config not found", HTTPStatus.NOT_FOUND)
     except ConfigValidationError as exc:

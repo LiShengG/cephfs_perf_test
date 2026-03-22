@@ -1,0 +1,39 @@
+# 实验数据
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# 前端编译产物 (React 构建输出)
+server/static/react/app.js
+server/static/react/app.css
+server/static/react/index.html
+
+# Node.js 依赖
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 前端构建临时文件
+web/dist/
+web/build/
+web/.vite/
+web/tsconfig.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db

@@ -62,6 +62,17 @@ def get_run(config_name: str, run_id: str):
         return _json_error("run not found", HTTPStatus.NOT_FOUND)
 
 
+@run_bp.delete("/api/configs/<config_name>/runs/<run_id>")
+def delete_run(config_name: str, run_id: str):
+    try:
+        store.delete_run(config_name, run_id)
+    except FileNotFoundError:
+        return _json_error("run not found", HTTPStatus.NOT_FOUND)
+    except RunStateError as exc:
+        return _json_error(str(exc), HTTPStatus.CONFLICT)
+    return jsonify({"ok": True})
+
+
 @run_bp.get("/api/configs/<config_name>/runs/<run_id>/logs/<log_type>")
 def read_log(config_name: str, run_id: str, log_type: str):
     if log_type not in {"stdout", "stderr"}:
