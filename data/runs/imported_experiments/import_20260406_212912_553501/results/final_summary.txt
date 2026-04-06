@@ -1,0 +1,61 @@
+==================================================
+Run tag:        2026-04-02_083803
+Output dir:     ./mdtest_run_2026-04-02_083803
+MPI_BIN:        /usr/lib64/openmpi/bin/mpirun
+MPI_PREFIX:     /usr/lib64/openmpi
+NP per tenant:  64
+Files per proc: 26000
+Iterations:     3
+Base mount:     /mnt/tenant_a
+Tenant A dir:   /mnt/tenant_a/perf_tenant_a
+Tenant B dir:   /mnt/tenant_a/perf_tenant_b
+Tenant C dir:   /mnt/tenant_a/perf_tenant_c
+==================================================
+
+Exit codes:
+  Tenant_A: 0
+  Tenant_B: 0
+  Tenant_C: 0
+
+===== Summary from ./mdtest_run_2026-04-02_083803/result_tenant_a.log =====
+SUMMARY rate (in ops/sec): (of 3 iterations)
+   Directory creation           2325.980       1280.713       1678.359        565.695
+   Directory removal            3333.840       2229.230       2824.023        557.186
+   File creation                2485.949       2050.044       2303.176        226.310
+   File stat                    9515.884       8951.684       9221.499        282.901
+   File read                    3418.958       2977.276       3127.933        252.088
+   File removal                 3390.161       2625.002       3096.455        412.387
+-- finished at 04/02/2026 12:39:28 --
+
+===== Summary from ./mdtest_run_2026-04-02_083803/result_tenant_b.log =====
+SUMMARY rate (in ops/sec): (of 3 iterations)
+   Directory creation           1874.566       1336.593       1653.265        281.382
+   Directory removal            3316.238       1831.556       2384.737        811.428
+   File creation                2624.370       2365.484       2479.552        132.154
+   File stat                    8991.026       7749.340       8444.610        634.086
+   File read                    3844.413       3170.900       3589.032        365.063
+   File removal                 3293.024       3120.703       3228.670         94.076
+-- finished at 04/02/2026 12:37:02 --
+
+===== Summary from ./mdtest_run_2026-04-02_083803/result_tenant_c.log =====
+SUMMARY rate (in ops/sec): (of 3 iterations)
+   Directory creation           2061.478       1253.431       1633.728        406.108
+   Directory removal            2539.815       1972.496       2335.703        315.351
+   File creation                2696.043       2253.818       2493.606        223.466
+   File stat                    8434.119       5906.049       7235.029       1269.031
+   File read                    3386.543       3011.386       3136.686        216.383
+   File removal                 3931.722       3112.699       3460.141        423.388
+-- finished at 04/02/2026 12:46:55 --
+
+===== Aggregated total throughput =====
+Total File creation OPS : 7806.362
+Total File stat OPS     : 26941.029
+Total File read OPS     : 10649.914
+Total File removal OPS  : 10614.907
+
+===== Per-tenant average throughput =====
+Avg File creation OPS   : 2602.121
+Avg File stat OPS       : 8980.343
+Avg File read OPS       : 3549.971
+Avg File removal OPS    : 3538.302
+

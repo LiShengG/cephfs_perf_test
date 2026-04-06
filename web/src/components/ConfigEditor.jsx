@@ -16,6 +16,7 @@ export default function ConfigEditor({
       eyebrow="Parameter Profile"
       title={activeConfigName || "Select or create a config"}
       defaultOpen={false}
+      density="dense"
       className="panel-editor"
       actions={
         <div className="button-row">

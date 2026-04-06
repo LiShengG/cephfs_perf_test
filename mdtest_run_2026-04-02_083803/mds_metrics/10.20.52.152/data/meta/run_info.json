@@ -1,0 +1,19 @@
+{
+  "tag": "2026-04-02_083803",
+  "cluster_name": "ceph",
+  "start_time": "2026-04-02T08:38:07+08:00",
+  "start_time_unix": 1775090287,
+  "host": "node-2",
+  "interval_sec": 20,
+  "duration_sec": null,
+  "samples": null,
+  "once": false,
+  "mds_list": [
+    "mds.node-2.cephfs.dowhqz"
+  ],
+  "script_name": "collect_mds_perf_raw.sh",
+  "script_version": "1.0.0",
+  "output_dir": "/tmp/mds_metrics/2026-04-02_083803/data",
+  "rounds_completed": 753,
+  "total_success_samples": 753
+}

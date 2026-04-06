@@ -1,5 +1,13 @@
-export default function CollapsiblePanel({ eyebrow, title, actions, defaultOpen = false, children, className = "" }) {
-  const panelClassName = ["panel", "collapsible-panel", className].filter(Boolean).join(" ");
+export default function CollapsiblePanel({
+  eyebrow,
+  title,
+  actions,
+  defaultOpen = false,
+  density = "normal",
+  children,
+  className = "",
+}) {
+  const panelClassName = ["panel", "collapsible-panel", `panel-density-${density}`, className].filter(Boolean).join(" ");
   const handleActionsClick = (event) => {
     event.stopPropagation();
   };

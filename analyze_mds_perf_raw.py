@@ -47,8 +47,10 @@ DEFAULT_GAUGE_METRICS = {
     "mds.q",
     "mds.inodes",
     "mds.root_rfiles",
+    "mds.root_rbytes",
     "mds.inodes_pinned",
     "mds.inodes_with_caps",
+    "mds.inodes_expired",
     "mds.caps",
     "mds.subtrees",
     "mds_cache.num_strays",
@@ -59,6 +61,13 @@ DEFAULT_GAUGE_METRICS = {
     "mds_mem.cap",
     "mds_mem.rss",
     "mds_mem.heap",
+    "mempool.mds_co_bytes",
+    "finisher-MDSRank.queue_len",
+    "finisher-PurgeQueue.queue_len",
+    "purge_queue.pq_executing_ops",
+    "purge_queue.pq_executing_ops_high_water",
+    "purge_queue.pq_executing",
+    "purge_queue.pq_executing_high_water",
 }
 
 DEFAULT_COUNTER_METRICS = {
@@ -69,12 +78,21 @@ DEFAULT_COUNTER_METRICS = {
     "mds.openino_peer_discover",
     "mds.traverse",
     "mds.traverse_hit",
+    "mds.traverse_forward",
+    "mds.traverse_discover",
     "mds.traverse_dir_fetch",
+    "mds.traverse_remote_ino",
+    "mds.traverse_lock",
     "mds.load_cent",
     "mds.exported",
     "mds.exported_inodes",
     "mds.imported",
     "mds.imported_inodes",
+    "mds.handle_client_caps",
+    "mds.handle_client_cap_release",
+    "mds.process_request_cap_release",
+    "mds.ceph_cap_op_grant",
+    "mds.ceph_cap_op_revoke",
     "mds_cache.strays_created",
     "mds_cache.strays_enqueued",
     "mds_log.evadd",
@@ -86,14 +104,43 @@ DEFAULT_COUNTER_METRICS = {
     "mds_server.dispatch_client_request",
     "mds_server.handle_client_request",
     "mds_server.handle_client_session",
+    "purge_queue.pq_executed",
+}
+
+DEFAULT_RATIO_METRICS = {
+    # cache hit ratio
+    ("mds.traverse_hit", "mds.traverse", "traverse_hit_ratio"),
+    # forward ratio
+    ("mds.forward", "mds.request", "forward_ratio"),
+    # dir_fetch ratio
+    ("mds.dir_fetch", "mds.traverse", "dir_fetch_ratio"),
+    # request processing ratio
+    ("mds_server.handle_client_request", "mds_server.dispatch_client_request", "dispatch_handle_ratio"),
+    # request completion ratio
+    ("mds.reply", "mds.request", "reply_to_request_ratio"),
+    # file-count density in resident memory
+    ("mds.root_rfiles", "mds_mem.rss", "files_per_rss"),
+    # inode density in resident memory
+    ("mds.inodes", "mds_mem.rss", "inodes_per_rss"),
+    # dentry density in resident memory
+    ("mds_mem.dn", "mds_mem.rss", "dn_per_rss"),
+    # cap density on active inodes
+    ("mds.caps", "mds.inodes_with_caps", "caps_per_active_inode"),
 }
 
 DEFAULT_LATENCY_BASES = {
     "mds.reply_latency",
     "mds_log.jlat",
+    "finisher-MDSRank.complete_latency",
+    "finisher-PurgeQueue.complete_latency",
     "mds_server.req_create_latency",
+    "mds_server.req_open_latency",
+    "mds_server.req_mkdir_latency",
+    "mds_server.req_rename_latency",
+    "mds_server.req_rmdir_latency",
     "mds_server.req_lookup_latency",
     "mds_server.req_lookupino_latency",
+    "mds_server.req_lookupparent_latency",
     "mds_server.req_getattr_latency",
     "mds_server.req_readdir_latency",
     "mds_server.req_setxattr_latency",
@@ -108,13 +155,41 @@ DEFAULT_METRICS = sorted(
         "mds.dir_fetch",
         "mds.openino_peer_discover",
         "mds.traverse",
+        "mds.traverse_hit",
+        "mds.traverse_dir_fetch",
+        "mds.traverse_lock",
         "mds_cache.strays_created",
         "mds.root_rfiles",
+        "mds.root_rbytes",
+        "mds.inodes_expired",
+        "mds.inodes",
+        "mds.inodes_with_caps",
+        "mds.caps",
         "mds_mem.rss",
+        "mds_mem.ino",
+        "mds_mem.dn",
+        "mds_mem.heap",
+        "mempool.mds_co_bytes",
         "mds.q",
+        "mds_server.dispatch_client_request",
+        "mds_server.handle_client_request",
+        "mds.handle_client_caps",
+        "mds.ceph_cap_op_grant",
+        "mds.ceph_cap_op_revoke",
+        "finisher-MDSRank.queue_len",
+        "purge_queue.pq_executing",
+        "purge_queue.pq_executed",
+        "mds.reply_latency",
+        "finisher-MDSRank.complete_latency",
         "mds_server.req_lookup_latency",
         "mds_server.req_lookupino_latency",
+        "mds_server.req_open_latency",
+        "mds_server.req_create_latency",
+        "mds_server.req_mkdir_latency",
+        "mds_server.req_rename_latency",
+        "mds_server.req_rmdir_latency",
         "mds_server.req_unlink_latency",
+        "mds_server.req_readdir_latency",
         "mds_log.jlat",
     }
 )
@@ -122,18 +197,54 @@ DEFAULT_METRICS = sorted(
 STANDARD_PER_MDS_PLOTS = [
     ("mds.request", "rate"),
     ("mds.reply", "rate"),
+    ("mds_server.dispatch_client_request", "rate"),
+    ("mds_server.handle_client_request", "rate"),
     ("mds.forward", "rate"),
     ("mds.dir_fetch", "rate"),
     ("mds.openino_peer_discover", "rate"),
     ("mds.traverse", "rate"),
+    ("mds.traverse_dir_fetch", "rate"),
+    ("mds.traverse_lock", "rate"),
+    ("mds.handle_client_caps", "rate"),
+    ("mds.ceph_cap_op_grant", "rate"),
+    ("mds.ceph_cap_op_revoke", "rate"),
     ("mds_cache.strays_created", "rate"),
-    ("mds.root_rfiles", "rate"),
+    ("purge_queue.pq_executed", "rate"),
+    ("mds.inodes_expired", "rate"),
+    ("mds.root_rfiles", "raw"),
+    ("mds.root_rbytes", "raw"),
+    ("mds.inodes", "raw"),
+    ("mds.inodes_with_caps", "raw"),
+    ("mds.caps", "raw"),
     ("mds_mem.rss", "raw"),
+    ("mds_mem.heap", "raw"),
+    ("mds_mem.ino", "raw"),
+    ("mds_mem.dn", "raw"),
+    ("mempool.mds_co_bytes", "raw"),
     ("mds.q", "raw"),
+    ("finisher-MDSRank.queue_len", "raw"),
+    ("purge_queue.pq_executing", "raw"),
+    ("mds.ratio.traverse_hit_ratio", "ratio"),
+    ("mds.ratio.dispatch_handle_ratio", "ratio"),
+    ("mds.ratio.reply_to_request_ratio", "ratio"),
+    ("mds.ratio.files_per_rss", "ratio"),
+    ("mds.ratio.inodes_per_rss", "ratio"),
+    ("mds.ratio.dn_per_rss", "ratio"),
+    ("mds.ratio.caps_per_active_inode", "ratio"),
+    ("mds.reply_latency", "period_avg"),
+    ("finisher-MDSRank.complete_latency", "period_avg"),
+    ("mds_server.req_create_latency", "period_avg"),
+    ("mds_server.req_open_latency", "period_avg"),
+    ("mds_server.req_mkdir_latency", "period_avg"),
+    ("mds_server.req_readdir_latency", "period_avg"),
     ("mds_server.req_lookup_latency", "period_avg"),
     ("mds_server.req_lookupino_latency", "period_avg"),
+    ("mds_server.req_rename_latency", "period_avg"),
+    ("mds_server.req_rmdir_latency", "period_avg"),
     ("mds_server.req_unlink_latency", "period_avg"),
     ("mds_log.jlat", "period_avg"),
+    ("mds.ratio.forward_ratio", "ratio"),
+    ("mds.ratio.dir_fetch_ratio", "ratio"),
 ]
 
 STANDARD_AGGREGATE_PLOTS = [
@@ -165,6 +276,7 @@ class AnalysisConfig:
     gauge_metrics: set[str] = field(default_factory=lambda: set(DEFAULT_GAUGE_METRICS))
     counter_metrics: set[str] = field(default_factory=lambda: set(DEFAULT_COUNTER_METRICS))
     latency_bases: set[str] = field(default_factory=lambda: set(DEFAULT_LATENCY_BASES))
+    ratio_metrics: set[tuple[str, str, str]] = field(default_factory=lambda: set(DEFAULT_RATIO_METRICS))
 
 
 @dataclass
@@ -204,7 +316,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--input-dirs", required=True)
     p.add_argument("--output-dir")
     p.add_argument("--metrics")
-    p.add_argument("--transforms", default="raw,delta,rate,period_avg")
+    p.add_argument("--transforms", default="raw,delta,rate,period_avg,ratio")
     p.add_argument("--group-by", default="per_mds", choices=["per_mds", "per_host", "aggregate"])
     p.add_argument("--compare-mode", default="none", choices=["none", "overlay"])
     p.add_argument("--align-time", default="relative", choices=["absolute", "relative"])
@@ -245,6 +357,26 @@ def parse_plot_window_fraction(raw: Optional[str]) -> Optional[Tuple[float, floa
     return (start, end)
 
 
+def expand_metrics_for_derived_transforms(
+    metrics: List[str],
+    transforms: Sequence[str],
+    ratio_metrics: set[tuple[str, str, str]],
+) -> List[str]:
+    expanded = list(metrics)
+    seen = set(expanded)
+
+    if "ratio" in transforms:
+        for numerator_metric, denominator_metric, _ in ratio_metrics:
+            if numerator_metric not in seen:
+                expanded.append(numerator_metric)
+                seen.add(numerator_metric)
+            if denominator_metric not in seen:
+                expanded.append(denominator_metric)
+                seen.add(denominator_metric)
+
+    return expanded
+
+
 def build_config(args: argparse.Namespace) -> AnalysisConfig:
     cfg_file = load_config(args.config)
     now = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -257,6 +389,8 @@ def build_config(args: argparse.Namespace) -> AnalysisConfig:
     gauge = set(cfg_file.get("gauge_metrics", DEFAULT_GAUGE_METRICS))
     counter = set(cfg_file.get("counter_metrics", DEFAULT_COUNTER_METRICS))
     latency = set(cfg_file.get("latency_bases", DEFAULT_LATENCY_BASES))
+    ratio = set(cfg_file.get("ratio_metrics", DEFAULT_RATIO_METRICS))
+    metrics = expand_metrics_for_derived_transforms(metrics, transforms, ratio)
     return AnalysisConfig(
         input_dirs=parse_csv_list(args.input_dirs, []),
         output_dir=output_dir,
@@ -275,6 +409,7 @@ def build_config(args: argparse.Namespace) -> AnalysisConfig:
         gauge_metrics=gauge,
         counter_metrics=counter,
         latency_bases=latency,
+        ratio_metrics=ratio,
     )
 
 
@@ -575,6 +710,8 @@ def infer_metric_type(metric_path: str, cfg: AnalysisConfig) -> str:
     for base in cfg.latency_bases:
         if metric_path == base or metric_path.startswith(base + "."):
             return "latency_pair"
+    if metric_path.startswith("mds.ratio."):
+        return "ratio"
     return "unknown"
 
 
@@ -718,6 +855,156 @@ def make_transform_rows(df: pd.DataFrame, cfg: AnalysisConfig, error_logger: log
             else:
                 rows.append(out.loc[~out["reset_detected"]].copy())
 
+    if "ratio" in cfg.transforms and cfg.ratio_metrics:
+        error_logger.info("========== Starting ratio calculation for %d configured ratios ==========", len(cfg.ratio_metrics))
+        error_logger.info("Configured ratios: %s", [(n, d, r) for n, d, r in cfg.ratio_metrics])
+        ratio_rows: List[pd.DataFrame] = []
+        for numerator_metric, denominator_metric, ratio_name in cfg.ratio_metrics:
+            error_logger.info("----- Processing ratio: %s = %s / %s -----", ratio_name, numerator_metric, denominator_metric)
+            num_mask = calc_df["metric_path"] == numerator_metric
+            den_mask = calc_df["metric_path"] == denominator_metric
+
+            num_count = num_mask.sum()
+            den_count = den_mask.sum()
+            error_logger.info("Found %d samples for numerator (%s) and %d samples for denominator (%s)",
+                       num_count, numerator_metric, den_count, denominator_metric)
+
+            if not (num_mask.any() and den_mask.any()):
+                error_logger.warning("Skipping ratio %s: missing data (num=%d, den=%d)", ratio_name, num_count, den_count)
+                continue
+
+            num_df = calc_df[num_mask].copy()
+            den_df = calc_df[den_mask].copy()
+
+            num_type = infer_metric_type(numerator_metric, cfg)
+            den_type = infer_metric_type(denominator_metric, cfg)
+            ratio_mode: Optional[str] = None
+            if num_type == "counter" and den_type == "counter":
+                ratio_mode = "delta"
+            elif num_type == "gauge" and den_type == "gauge":
+                ratio_mode = "raw"
+            else:
+                error_logger.warning(
+                    "Skipping ratio %s: unsupported metric type combination num=%s(%s) den=%s(%s)",
+                    ratio_name,
+                    numerator_metric,
+                    num_type,
+                    denominator_metric,
+                    den_type,
+                )
+                continue
+
+            error_logger.info("Ratio %s uses %s mode", ratio_name, ratio_mode)
+
+            # Check delta statistics before merging
+            if ratio_mode == "delta":
+                num_value_col = "delta"
+                den_value_col = "delta"
+                num_valid = num_df["delta"].notna().sum()
+                den_valid = den_df["delta"].notna().sum()
+                num_zero = (num_df["delta"] == 0).sum()
+                den_zero = (den_df["delta"] == 0).sum()
+                num_nan = num_df["delta"].isna().sum()
+                den_nan = den_df["delta"].isna().sum()
+
+                error_logger.info("Numerator deltas: total=%d, valid=%d, zero=%d, nan=%d", len(num_df), num_valid, num_zero, num_nan)
+                error_logger.info("Denominator deltas: total=%d, valid=%d, zero=%d, nan=%d", len(den_df), den_valid, den_zero, den_nan)
+
+                if len(num_df) > 0:
+                    error_logger.info("Numerator delta sample stats: min=%.2f, max=%.2f, mean=%.2f",
+                               num_df["delta"].min(), num_df["delta"].max(), num_df["delta"].mean())
+                if len(den_df) > 0:
+                    error_logger.info("Denominator delta sample stats: min=%.2f, max=%.2f, mean=%.2f",
+                               den_df["delta"].min(), den_df["delta"].max(), den_df["delta"].mean())
+            else:
+                num_value_col = "raw_value"
+                den_value_col = "raw_value"
+                num_valid = num_df["raw_value"].notna().sum()
+                den_valid = den_df["raw_value"].notna().sum()
+                num_zero = (num_df["raw_value"] == 0).sum()
+                den_zero = (den_df["raw_value"] == 0).sum()
+                num_nan = num_df["raw_value"].isna().sum()
+                den_nan = den_df["raw_value"].isna().sum()
+
+                error_logger.info("Numerator raw values: total=%d, valid=%d, zero=%d, nan=%d", len(num_df), num_valid, num_zero, num_nan)
+                error_logger.info("Denominator raw values: total=%d, valid=%d, zero=%d, nan=%d", len(den_df), den_valid, den_zero, den_nan)
+
+                if len(num_df) > 0:
+                    error_logger.info("Numerator raw sample stats: min=%.2f, max=%.2f, mean=%.2f",
+                               num_df["raw_value"].min(), num_df["raw_value"].max(), num_df["raw_value"].mean())
+                if len(den_df) > 0:
+                    error_logger.info("Denominator raw sample stats: min=%.2f, max=%.2f, mean=%.2f",
+                               den_df["raw_value"].min(), den_df["raw_value"].max(), den_df["raw_value"].mean())
+
+            merge_keys = ["experiment_id", "group_key", "mds_daemon", "host", "mds_name", "timestamp", "timestamp_unix", "time_offset_sec", "seq"]
+            merged_ratio = num_df.merge(
+                den_df,
+                on=merge_keys,
+                how="inner",
+                suffixes=("_num", "_den"),
+            )
+
+            error_logger.info("Merged %d rows for ratio %s after inner join", len(merged_ratio), ratio_name)
+
+            if merged_ratio.empty:
+                error_logger.warning("Skipping ratio %s: no matching rows after merge. Check if timestamps/seq align between numerator and denominator.", ratio_name)
+                continue
+
+            # Check for zero denominators
+            zero_den_count = (merged_ratio[f"{den_value_col}_den"] == 0).sum()
+            nan_num_count = merged_ratio[f"{num_value_col}_num"].isna().sum()
+            nan_den_count = merged_ratio[f"{den_value_col}_den"].isna().sum()
+
+            if zero_den_count > 0:
+                error_logger.warning("Ratio %s: %d/%d rows have zero denominator (will be marked invalid)", ratio_name, zero_den_count, len(merged_ratio))
+            if nan_num_count > 0 or nan_den_count > 0:
+                error_logger.warning("Ratio %s: %d NaN num, %d NaN den", ratio_name, nan_num_count, nan_den_count)
+
+            ratio_out = pd.DataFrame(
+                {
+                    "experiment_id": merged_ratio["experiment_id"],
+                    "experiment_tag": merged_ratio["experiment_tag_num"],
+                    "cluster_name": merged_ratio["cluster_name_num"],
+                    "host": merged_ratio["host"],
+                    "mds_name": merged_ratio["mds_name"],
+                    "mds_daemon": merged_ratio["mds_daemon"],
+                    "group_key": merged_ratio["group_key"],
+                    "timestamp": merged_ratio["timestamp"],
+                    "timestamp_unix": merged_ratio["timestamp_unix"],
+                    "time_offset_sec": merged_ratio["time_offset_sec"],
+                    "seq": merged_ratio["seq"],
+                    "metric_path": f"mds.ratio.{ratio_name}",
+                    "metric_type": "ratio",
+                    "source_file": merged_ratio["source_file_num"],
+                    "transform": "ratio",
+                    "value": merged_ratio[f"{num_value_col}_num"] / merged_ratio[f"{den_value_col}_den"],
+                    "unit": "ratio",
+                    "reset_detected": merged_ratio.get("reset_detected_num", False) | merged_ratio.get("reset_detected_den", False),
+                    "is_valid": (merged_ratio[f"{den_value_col}_den"] != 0)
+                    & merged_ratio[f"{num_value_col}_num"].notna()
+                    & merged_ratio[f"{den_value_col}_den"].notna(),
+                }
+            )
+
+            valid_count = ratio_out["is_valid"].sum()
+            error_logger.info("Ratio %s: final valid rows=%d/%d", ratio_name, valid_count, len(ratio_out))
+
+            if valid_count > 0:
+                error_logger.info("Ratio %s value stats: min=%.4f, max=%.4f, mean=%.4f",
+                           ratio_name,
+                           ratio_out.loc[ratio_out["is_valid"], "value"].min(),
+                           ratio_out.loc[ratio_out["is_valid"], "value"].max(),
+                           ratio_out.loc[ratio_out["is_valid"], "value"].mean())
+
+            ratio_out.loc[~ratio_out["is_valid"], "value"] = np.nan
+            if cfg.reset_policy == "mark":
+                ratio_out.loc[ratio_out["reset_detected"], ["value", "is_valid"]] = [np.nan, False]
+            ratio_rows.append(ratio_out)
+        if ratio_rows:
+            error_logger.info("Generated %d ratio DataFrames, concatenating...", len(ratio_rows))
+            rows.append(pd.concat(ratio_rows, ignore_index=True, sort=False))
+        else:
+            error_logger.warning("No ratio data generated - all ratios skipped due to missing data or invalid calculations")
     if not rows:
         return pd.DataFrame()
     out_df = pd.concat(rows, ignore_index=True, sort=False)
@@ -809,11 +1096,28 @@ def sanitize_metric_name(metric_path: str) -> str:
 
 
 def plot_metric_series(df: pd.DataFrame, out_path: Path, title: str, xlabel: str, ylabel: str, series_by: str, x_col: str) -> bool:
+    if df.empty:
+        return False
+
+    # 检查是否有非 NaN 的有效值
+    if df["value"].notna().sum() == 0:
+        return False
+
     try:
         fig, ax = plt.subplots(figsize=(10, 5))
+        plotted_count = 0
         for key, g in df.groupby(series_by):
             g = g.sort_values(x_col)
-            ax.plot(g[x_col], g["value"], label=str(key))
+            valid_g = g[g["value"].notna()]
+            if valid_g.empty:
+                continue
+            ax.plot(valid_g[x_col], valid_g["value"], label=str(key))
+            plotted_count += 1
+
+        if plotted_count == 0:
+            plt.close(fig)
+            return False
+
         ax.set_title(title)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
@@ -822,7 +1126,7 @@ def plot_metric_series(df: pd.DataFrame, out_path: Path, title: str, xlabel: str
         fig.savefig(out_path)
         plt.close(fig)
         return True
-    except Exception:
+    except Exception as e:
         plt.close("all")
         return False
 

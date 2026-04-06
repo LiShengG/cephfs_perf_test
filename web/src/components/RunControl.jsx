@@ -14,7 +14,8 @@ export default function RunControl({ activeConfigName, activeRun, viewedRun, sna
     <CollapsiblePanel
       eyebrow="Execution"
       title="Run Control"
-      defaultOpen={false}
+      defaultOpen={true}
+      density="dense"
       className="panel-control"
       actions={
         <div className="button-row">

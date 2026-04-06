@@ -1,0 +1,16 @@
+{
+  "run_id": "import_20260406_212912_553501",
+  "run_name": "mdtest_run_2026-04-02_083803",
+  "config_name": "imported_experiments",
+  "status": "completed",
+  "started_at": "2026-04-02T08:38:07+08:00",
+  "ended_at": "2026-04-02T11:24:10+08:00",
+  "pid": null,
+  "return_code": 0,
+  "result_dir": "/home/lsh/code/cephfs_perf_test/data/runs/imported_experiments/import_20260406_212912_553501/results",
+  "stdout_log": "/home/lsh/code/cephfs_perf_test/data/runs/imported_experiments/import_20260406_212912_553501/logs/stdout.log",
+  "stderr_log": "/home/lsh/code/cephfs_perf_test/data/runs/imported_experiments/import_20260406_212912_553501/logs/stderr.log",
+  "config_snapshot": "/home/lsh/code/cephfs_perf_test/data/runs/imported_experiments/import_20260406_212912_553501/test.conf.json",
+  "imported": true,
+  "source_dir_name": "mdtest_run_2026-04-02_083803"
+}

@@ -1,0 +1,13 @@
+{
+  "config_name": "imported_experiments",
+  "imported": true,
+  "source_dir_name": "mdtest_run_2026-04-02_083803",
+  "imported_at": "2026-04-06T21:28:57",
+  "report_count": 499,
+  "mds_names": [
+    "node-2.cephfs.dowhqz"
+  ],
+  "hosts": [
+    "node-2"
+  ]
+}

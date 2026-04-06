@@ -30,7 +30,7 @@ export default function RunDetail({
 }) {
   return (
     <>
-      <CollapsiblePanel eyebrow="Analysis" title="Run Detail" defaultOpen={false} className="panel-detail">
+      <CollapsiblePanel eyebrow="Analysis" title="Run Detail" defaultOpen={false} density="dense" className="panel-detail">
         <div className="detail-grid">
           <DetailPane title="Raw Summary">
             <pre>{summaryText || "Load a run to inspect final_summary.txt"}</pre>
@@ -47,6 +47,7 @@ export default function RunDetail({
         eyebrow="Metrics"
         title="Reported Data Charts"
         defaultOpen={true}
+        density="dense"
         className="panel-detail"
         actions={
           <div className="button-row chart-toolbar">
@@ -65,7 +66,7 @@ export default function RunDetail({
         }
       >
         <div className="chart-grid">
-          {chartCards.map((metricKey) => {
+          {chartCards.length ? chartCards.map((metricKey) => {
             const metric = metrics.find((item) => item.key === metricKey) || { label: metricKey };
             return (
               <div className="chart-card" key={metricKey}>
@@ -81,10 +82,10 @@ export default function RunDetail({
                 <LineChart data={chartSeries[metricKey]} xAxisLabel="Time" yAxisLabel={metric.label || metricKey} />
               </div>
             );
-          })}
+          }) : <div className="chart-empty">Load a run and add metrics to compare the reported data.</div>}
         </div>
       </CollapsiblePanel>
-      <CollapsiblePanel eyebrow="Notes" title="Experiment Conclusion Analysis" defaultOpen={false} className="panel-detail">
+      <CollapsiblePanel eyebrow="Notes" title="Experiment Conclusion Analysis" defaultOpen={false} density="dense" className="panel-detail">
         <div className="analysis-editor-shell">
           <div className="analysis-toolbar">
             <p className="analysis-helper">

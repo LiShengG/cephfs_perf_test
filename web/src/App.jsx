@@ -415,44 +415,50 @@ export default function App() {
         onDeleteRun={handleDeleteRun}
       />
       <main className="main-shell">
-        <ConfigEditor
-          activeConfigName={activeConfigName}
-          configText={configText}
-          onChange={setConfigText}
-          onCreate={handleCreate}
-          onSave={handleSave}
-          onRename={handleRename}
-          onDelete={handleDelete}
-          message={message}
-          messageError={error}
-        />
-        <RunControl
-          activeConfigName={activeConfigName}
-          activeRun={activeRun}
-          viewedRun={viewedRun}
-          snapshot={snapshot}
-          summaryJson={summaryJson}
-          onStart={handleStartRun}
-          onStop={handleStopRun}
-        />
-        <RunDetail
-          summaryText={summaryText}
-          stdout={stdoutText}
-          stderr={stderrText}
-          metrics={metricOptions}
-          selectedMetric={selectedMetric}
-          onMetricChange={setSelectedMetric}
-          onAddChart={handleAddChart}
-          chartCards={chartCards}
-          chartSeries={chartSeries}
-          onRemoveChart={handleRemoveChart}
-          analysisNotes={analysisNotes}
-          onAnalysisNotesChange={setAnalysisNotes}
-          analysisNotesSavedAt={analysisNotesSavedAt}
-          analysisNotesSaving={analysisNotesSaving}
-          analysisNotesDirty={analysisNotes !== savedAnalysisNotes}
-          onSaveAnalysisNotes={handleSaveAnalysisNotes}
-        />
+        <section className="workspace-grid">
+          <div className="workspace-main">
+            <RunControl
+              activeConfigName={activeConfigName}
+              activeRun={activeRun}
+              viewedRun={viewedRun}
+              snapshot={snapshot}
+              summaryJson={summaryJson}
+              onStart={handleStartRun}
+              onStop={handleStopRun}
+            />
+            <RunDetail
+              summaryText={summaryText}
+              stdout={stdoutText}
+              stderr={stderrText}
+              metrics={metricOptions}
+              selectedMetric={selectedMetric}
+              onMetricChange={setSelectedMetric}
+              onAddChart={handleAddChart}
+              chartCards={chartCards}
+              chartSeries={chartSeries}
+              onRemoveChart={handleRemoveChart}
+              analysisNotes={analysisNotes}
+              onAnalysisNotesChange={setAnalysisNotes}
+              analysisNotesSavedAt={analysisNotesSavedAt}
+              analysisNotesSaving={analysisNotesSaving}
+              analysisNotesDirty={analysisNotes !== savedAnalysisNotes}
+              onSaveAnalysisNotes={handleSaveAnalysisNotes}
+            />
+          </div>
+          <aside className="workspace-side">
+            <ConfigEditor
+              activeConfigName={activeConfigName}
+              configText={configText}
+              onChange={setConfigText}
+              onCreate={handleCreate}
+              onSave={handleSave}
+              onRename={handleRename}
+              onDelete={handleDelete}
+              message={message}
+              messageError={error}
+            />
+          </aside>
+        </section>
       </main>
     </div>
   );
