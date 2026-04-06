@@ -10,6 +10,9 @@ function Box({ title, children }) {
 }
 
 export default function RunControl({ activeConfigName, activeRun, viewedRun, snapshot, summaryJson, onStart, onStop }) {
+  const summaryKeys = summaryJson ? Object.keys(summaryJson).length : 0;
+  const snapshotKeys = snapshot ? Object.keys(snapshot).length : 0;
+
   return (
     <CollapsiblePanel
       eyebrow="Execution"
@@ -28,6 +31,24 @@ export default function RunControl({ activeConfigName, activeRun, viewedRun, sna
         </div>
       }
     >
+      <div className="control-strip">
+        <div className="control-strip-card">
+          <span className="control-strip-label">Selected Config</span>
+          <strong>{activeConfigName || "None"}</strong>
+        </div>
+        <div className="control-strip-card">
+          <span className="control-strip-label">Active Run State</span>
+          <strong>{activeRun?.status || "Idle"}</strong>
+        </div>
+        <div className="control-strip-card">
+          <span className="control-strip-label">Snapshot Fields</span>
+          <strong>{snapshotKeys}</strong>
+        </div>
+        <div className="control-strip-card">
+          <span className="control-strip-label">Summary Fields</span>
+          <strong>{summaryKeys}</strong>
+        </div>
+      </div>
       <div className="control-grid">
         <Box title="Active Run">
           <pre>{activeRun ? JSON.stringify(activeRun, null, 2) : "No active experiment"}</pre>

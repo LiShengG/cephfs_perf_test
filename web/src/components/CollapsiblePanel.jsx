@@ -22,7 +22,7 @@ export default function CollapsiblePanel({
         <div className="collapsible-actions" onClick={handleActionsClick} onMouseDown={handleActionsClick}>
           {actions}
           <span className="collapse-indicator" aria-hidden="true">
-            ▾
+            v
           </span>
         </div>
       </summary>

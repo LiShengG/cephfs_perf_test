@@ -7,6 +7,13 @@ from server.utils.paths import REPO_ROOT, dump_json, read_app_config
 
 
 class MetricsStore:
+    METRIC_FALLBACKS = {
+        "server.handle_client_request": ("mds_server.handle_client_request",),
+        "server.journal_latency": ("mds_log.jlat",),
+        "mds_cache.num_inodes": ("mds.inodes",),
+        "mds_cache.num_caps": ("mds.caps",),
+    }
+
     def __init__(self) -> None:
         app_config = read_app_config()
         self.runs_dir = (REPO_ROOT / app_config["runs_dir"]).resolve()
@@ -70,7 +77,14 @@ class MetricsStore:
         if metric_key in proc_stat:
             return self._to_number(proc_stat.get(metric_key))
 
-        perf_dump = report.get("perf_dump", {})
+        candidate_keys = (metric_key, *self.METRIC_FALLBACKS.get(metric_key, ()))
+        for candidate in candidate_keys:
+            value = self._extract_perf_dump_metric(report.get("perf_dump", {}), candidate)
+            if value is not None:
+                return value
+        return None
+
+    def _extract_perf_dump_metric(self, perf_dump: dict[str, Any], metric_key: str) -> float | None:
         node: Any = perf_dump
         parts = metric_key.split(".")
         if parts and parts[0] not in perf_dump and "mds" in perf_dump:

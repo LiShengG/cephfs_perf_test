@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const palette = ["#c95f36", "#1f7a8c", "#6c8c3c", "#8646b5", "#ba3f3a", "#cc8b1f"];
+const palette = ["#ff9830", "#33a2e5", "#73bf69", "#f2495c", "#b877f3", "#ffd85e"];
 
 function formatTimestamp(value) {
   const date = new Date(value);
@@ -99,9 +99,9 @@ export default function LineChart({ data, xAxisLabel = "Time", yAxisLabel = "Val
         onMouseMove={handlePointerMove}
         onMouseLeave={() => setHoverPoint(null)}
       >
-        <rect x="0" y="0" width={width} height={height} fill="#fffdfa" />
-        <line x1={padLeft} y1={height - padBottom} x2={width - padRight} y2={height - padBottom} stroke="#dbcdb6" />
-        <line x1={padLeft} y1={padTop} x2={padLeft} y2={height - padBottom} stroke="#dbcdb6" />
+        <rect x="0" y="0" width={width} height={height} fill="#111827" />
+        <line x1={padLeft} y1={height - padBottom} x2={width - padRight} y2={height - padBottom} stroke="#2f3b52" />
+        <line x1={padLeft} y1={padTop} x2={padLeft} y2={height - padBottom} stroke="#2f3b52" />
         {seriesData.map((series) => (
           <polyline key={series.name} fill="none" stroke={series.stroke} strokeWidth="2.8" points={series.polyline} />
         ))}
@@ -125,35 +125,35 @@ export default function LineChart({ data, xAxisLabel = "Time", yAxisLabel = "Val
               strokeDasharray="4 4"
               opacity="0.35"
             />
-            <circle cx={hoverPoint.x} cy={hoverPoint.y} r="4.5" fill={hoverPoint.stroke} stroke="#fffdfa" strokeWidth="2" />
+            <circle cx={hoverPoint.x} cy={hoverPoint.y} r="4.5" fill={hoverPoint.stroke} stroke="#111827" strokeWidth="2" />
           </>
         ) : null}
-        <text x={padLeft} y="16" fill="#7a6c5b" fontSize="11">
+        <text x={padLeft} y="16" fill="#8fa2bf" fontSize="11">
           min={minValue.toFixed(2)} max={maxValue.toFixed(2)}
         </text>
-        <text x={width / 2} y={height - 10} fill="#7a6c5b" fontSize="12" textAnchor="middle">
+        <text x={width / 2} y={height - 10} fill="#8fa2bf" fontSize="12" textAnchor="middle">
           {xAxisLabel}
         </text>
         <text
           x="16"
           y={height / 2}
-          fill="#7a6c5b"
+          fill="#8fa2bf"
           fontSize="12"
           textAnchor="middle"
           transform={`rotate(-90 16 ${height / 2})`}
         >
           {yAxisLabel}
         </text>
-        <text x={padLeft} y={height - padBottom + 18} fill="#7a6c5b" fontSize="11">
+        <text x={padLeft} y={height - padBottom + 18} fill="#8fa2bf" fontSize="11">
           {formatTimestamp(minTime)}
         </text>
-        <text x={width - padRight} y={height - padBottom + 18} fill="#7a6c5b" fontSize="11" textAnchor="end">
+        <text x={width - padRight} y={height - padBottom + 18} fill="#8fa2bf" fontSize="11" textAnchor="end">
           {formatTimestamp(maxTime)}
         </text>
-        <text x={padLeft - 8} y={padTop + 4} fill="#7a6c5b" fontSize="11" textAnchor="end">
+        <text x={padLeft - 8} y={padTop + 4} fill="#8fa2bf" fontSize="11" textAnchor="end">
           {maxValue.toFixed(2)}
         </text>
-        <text x={padLeft - 8} y={height - padBottom + 4} fill="#7a6c5b" fontSize="11" textAnchor="end">
+        <text x={padLeft - 8} y={height - padBottom + 4} fill="#8fa2bf" fontSize="11" textAnchor="end">
           {minValue.toFixed(2)}
         </text>
       </svg>

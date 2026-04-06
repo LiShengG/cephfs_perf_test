@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
-import tempfile
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path, PurePosixPath
@@ -26,6 +26,12 @@ class UploadedEntry:
 
 class ImportService:
     IMPORTED_CONFIG_NAME = "imported_experiments"
+    IMPORT_COMPAT_ALIASES = {
+        "server.handle_client_request": ("mds_server", "handle_client_request"),
+        "server.journal_latency": ("mds_log", "jlat"),
+        "mds_cache.num_inodes": ("mds", "inodes"),
+        "mds_cache.num_caps": ("mds", "caps"),
+    }
 
     def __init__(self) -> None:
         app_config = read_app_config()
@@ -37,8 +43,11 @@ class ImportService:
         if not entries:
             raise ImportValidationError("no files were uploaded")
 
-        with tempfile.TemporaryDirectory(prefix="cephfs_import_") as tmp_dir:
-            staging_root = Path(tmp_dir)
+        staging_parent = self.runs_dir / ".import_staging"
+        staging_parent.mkdir(parents=True, exist_ok=True)
+        staging_root = staging_parent / f"cephfs_import_{uuid.uuid4().hex}"
+        staging_root.mkdir(parents=True, exist_ok=False)
+        try:
             source_dir_name = self._materialize_uploads(staging_root, entries)
             source_root = staging_root / source_dir_name
             summary_text = self._read_required_text(source_root / "final_summary.txt", "final_summary.txt is required")
@@ -108,6 +117,8 @@ class ImportService:
                 "source_dir_name": source_dir_name,
                 "summary": summary_json,
             }
+        finally:
+            shutil.rmtree(staging_root, ignore_errors=True)
 
     def _build_entries(self, manifest: list[dict[str, Any]], files: list[FileStorage]) -> list[UploadedEntry]:
         if len(manifest) != len(files):
@@ -164,7 +175,7 @@ class ImportService:
                 "mds": self._coalesce_text(sample_meta.get("mds_daemon"), f"mds.{mds_name}"),
                 "source_file": str(path.relative_to(source_root)),
                 "sample_meta": sample_meta,
-                "perf_dump": perf_dump,
+                "perf_dump": self._normalize_perf_dump(perf_dump),
             }
             proc_stat = payload.get("proc_stat")
             if isinstance(proc_stat, dict):
@@ -227,6 +238,32 @@ class ImportService:
         if not parts:
             raise ImportValidationError("uploaded file path is empty")
         return str(PurePosixPath(*parts))
+
+    def _normalize_perf_dump(self, perf_dump: dict[str, Any]) -> dict[str, Any]:
+        normalized = json.loads(json.dumps(perf_dump))
+        for metric_key, source_path in self.IMPORT_COMPAT_ALIASES.items():
+            value = self._extract_nested_value(perf_dump, source_path)
+            if value is not None:
+                self._assign_nested_value(normalized, metric_key.split("."), value)
+        return normalized
+
+    def _extract_nested_value(self, payload: dict[str, Any], path: tuple[str, ...]) -> Any:
+        node: Any = payload
+        for part in path:
+            if not isinstance(node, dict) or part not in node:
+                return None
+            node = node[part]
+        return json.loads(json.dumps(node))
+
+    def _assign_nested_value(self, payload: dict[str, Any], parts: list[str], value: Any) -> None:
+        node = payload
+        for part in parts[:-1]:
+            child = node.get(part)
+            if not isinstance(child, dict):
+                child = {}
+                node[part] = child
+            node = child
+        node[parts[-1]] = value
 
     def _read_required_text(self, path: Path, error_message: str) -> str:
         if not path.exists():

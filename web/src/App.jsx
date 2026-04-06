@@ -32,6 +32,7 @@ function useMessage() {
 }
 
 export default function App() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [tree, setTree] = useState([]);
   const [defaultConfig, setDefaultConfig] = useState(null);
   const [metricsSchema, setMetricsSchema] = useState([]);
@@ -54,6 +55,21 @@ export default function App() {
   const { message, error, setMessage } = useMessage();
 
   const metricOptions = useMemo(() => metricsSchema || [], [metricsSchema]);
+  const totalRunCount = useMemo(
+    () => tree.reduce((count, item) => count + (item.runs?.length || 0), 0),
+    [tree]
+  );
+  const runningRunCount = useMemo(
+    () =>
+      tree.reduce(
+        (count, item) =>
+          count +
+          (item.runs?.filter((run) => (run.status || "").toLowerCase() === "running").length || 0),
+        0
+      ),
+    [tree]
+  );
+  const viewedRunLabel = viewedRun?.run?.run_name || viewedRun?.runId || "No run selected";
 
   async function refreshRunDetail(configName, runId) {
     const payload = await fetchRun(configName, runId);
@@ -405,18 +421,48 @@ export default function App() {
   }, [viewedRun?.configName, viewedRun?.runId, analysisNotes, savedAnalysisNotes]);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${sidebarCollapsed ? "app-shell-sidebar-collapsed" : ""}`}>
       <Sidebar
         tree={tree}
         activeConfigName={activeConfigName}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((value) => !value)}
         onRefresh={() => refreshConfigs().catch((err) => setMessage(err.message, true))}
         onSelectConfig={handleSelectConfig}
         onSelectRun={handleSelectRun}
         onDeleteRun={handleDeleteRun}
       />
       <main className="main-shell">
+        <section className="topbar">
+          <div className="topbar-copy">
+            <p className="eyebrow">Observability Workspace</p>
+            <h1>CephFS Performance Dashboard</h1>
+            <p className="topbar-description">
+              Inspect benchmark configurations, monitor active experiments, and compare metric timelines in one control
+              room.
+            </p>
+          </div>
+          <div className="topbar-stats">
+            <div className="topbar-stat">
+              <span className="topbar-stat-label">Configs</span>
+              <strong>{tree.length}</strong>
+            </div>
+            <div className="topbar-stat">
+              <span className="topbar-stat-label">Runs</span>
+              <strong>{totalRunCount}</strong>
+            </div>
+            <div className="topbar-stat">
+              <span className="topbar-stat-label">Running</span>
+              <strong>{runningRunCount}</strong>
+            </div>
+            <div className="topbar-stat topbar-stat-wide">
+              <span className="topbar-stat-label">Focus</span>
+              <strong>{viewedRunLabel}</strong>
+            </div>
+          </div>
+        </section>
         <section className="workspace-grid">
-          <div className="workspace-main">
+          <div className="workspace-top-grid">
             <RunControl
               activeConfigName={activeConfigName}
               activeRun={activeRun}
@@ -426,6 +472,19 @@ export default function App() {
               onStart={handleStartRun}
               onStop={handleStopRun}
             />
+            <ConfigEditor
+              activeConfigName={activeConfigName}
+              configText={configText}
+              onChange={setConfigText}
+              onCreate={handleCreate}
+              onSave={handleSave}
+              onRename={handleRename}
+              onDelete={handleDelete}
+              message={message}
+              messageError={error}
+            />
+          </div>
+          <div className="workspace-main">
             <RunDetail
               summaryText={summaryText}
               stdout={stdoutText}
@@ -445,19 +504,6 @@ export default function App() {
               onSaveAnalysisNotes={handleSaveAnalysisNotes}
             />
           </div>
-          <aside className="workspace-side">
-            <ConfigEditor
-              activeConfigName={activeConfigName}
-              configText={configText}
-              onChange={setConfigText}
-              onCreate={handleCreate}
-              onSave={handleSave}
-              onRename={handleRename}
-              onDelete={handleDelete}
-              message={message}
-              messageError={error}
-            />
-          </aside>
         </section>
       </main>
     </div>

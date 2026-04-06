@@ -1,57 +1,309 @@
 {
   "metrics": [
     {
-      "key": "cpu_percent",
-      "label": "CPU 使用率",
-      "source": "proc_stat",
-      "unit": "%"
-    },
-    {
-      "key": "memory_mb",
-      "label": "内存使用",
-      "source": "proc_stat",
-      "unit": "MB"
-    },
-    {
-      "key": "io_read_bytes",
-      "label": "IO 读取字节",
-      "source": "proc_stat",
-      "unit": "bytes"
-    },
-    {
-      "key": "io_write_bytes",
-      "label": "IO 写入字节",
-      "source": "proc_stat",
-      "unit": "bytes"
-    },
-    {
-      "key": "open_files",
-      "label": "打开文件数",
-      "source": "proc_stat",
+      "key": "mds.request",
+      "label": "MDS Request",
+      "source": "perf_dump",
       "unit": "count"
     },
     {
+      "key": "mds.reply",
+      "label": "MDS Reply",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds_server.handle_client_request",
+      "label": "Handle Client Request",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds_server.dispatch_client_request",
+      "label": "Dispatch Client Request",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.reply_latency",
+      "label": "Reply Latency",
+      "source": "perf_dump",
+      "unit": "sec"
+    },
+    {
+      "key": "mds_log.jlat",
+      "label": "Journal Latency",
+      "source": "perf_dump",
+      "unit": "sec"
+    },
+    {
+      "key": "mds.inodes",
+      "label": "Inodes",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.inodes_with_caps",
+      "label": "Inodes With Caps",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.caps",
+      "label": "Caps",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds_mem.rss",
+      "label": "MDS RSS",
+      "source": "perf_dump",
+      "unit": "kb"
+    },
+    {
+      "key": "mds.q",
+      "label": "MDS Queue Depth",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.forward",
+      "label": "Forward",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.dir_fetch",
+      "label": "Dir Fetch",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.openino_peer_discover",
+      "label": "Openino Peer Discover",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.traverse",
+      "label": "Traverse",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.traverse_hit",
+      "label": "Traverse Hit",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.traverse_dir_fetch",
+      "label": "Traverse Dir Fetch",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.traverse_lock",
+      "label": "Traverse Lock",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds_cache.strays_created",
+      "label": "Strays Created",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.root_rfiles",
+      "label": "Root RFiles",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.root_rbytes",
+      "label": "Root RBytes",
+      "source": "perf_dump",
+      "unit": "bytes"
+    },
+    {
+      "key": "mds.inodes_expired",
+      "label": "Inodes Expired",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds_mem.ino",
+      "label": "MDS Mem Ino",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds_mem.dn",
+      "label": "MDS Mem Dn",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds_mem.heap",
+      "label": "MDS Heap",
+      "source": "perf_dump",
+      "unit": "kb"
+    },
+    {
+      "key": "mempool.mds_co_bytes",
+      "label": "Mempool MDS Co Bytes",
+      "source": "perf_dump",
+      "unit": "bytes"
+    },
+    {
+      "key": "mds.handle_client_caps",
+      "label": "Handle Client Caps",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.ceph_cap_op_grant",
+      "label": "Ceph Cap Grant",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds.ceph_cap_op_revoke",
+      "label": "Ceph Cap Revoke",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "finisher-MDSRank.queue_len",
+      "label": "MDSRank Queue Length",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "finisher-MDSRank.complete_latency",
+      "label": "MDSRank Complete Latency",
+      "source": "perf_dump",
+      "unit": "sec"
+    },
+    {
+      "key": "purge_queue.pq_executing",
+      "label": "Purge Queue Executing",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "purge_queue.pq_executed",
+      "label": "Purge Queue Executed",
+      "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "mds_server.req_lookup_latency",
+      "label": "Lookup Latency",
+      "source": "perf_dump",
+      "unit": "sec"
+    },
+    {
+      "key": "mds_server.req_lookupino_latency",
+      "label": "Lookupino Latency",
+      "source": "perf_dump",
+      "unit": "sec"
+    },
+    {
+      "key": "mds_server.req_open_latency",
+      "label": "Open Latency",
+      "source": "perf_dump",
+      "unit": "sec"
+    },
+    {
+      "key": "mds_server.req_create_latency",
+      "label": "Create Latency",
+      "source": "perf_dump",
+      "unit": "sec"
+    },
+    {
+      "key": "mds_server.req_mkdir_latency",
+      "label": "Mkdir Latency",
+      "source": "perf_dump",
+      "unit": "sec"
+    },
+    {
+      "key": "mds_server.req_rename_latency",
+      "label": "Rename Latency",
+      "source": "perf_dump",
+      "unit": "sec"
+    },
+    {
+      "key": "mds_server.req_rmdir_latency",
+      "label": "Rmdir Latency",
+      "source": "perf_dump",
+      "unit": "sec"
+    },
+    {
+      "key": "mds_server.req_unlink_latency",
+      "label": "Unlink Latency",
+      "source": "perf_dump",
+      "unit": "sec"
+    },
+    {
+      "key": "mds_server.req_readdir_latency",
+      "label": "Readdir Latency",
+      "source": "perf_dump",
+      "unit": "sec"
+    },
+    {
       "key": "server.handle_client_request",
-      "label": "MDS 请求处理",
+      "label": "MDS Request Alias",
       "source": "perf_dump",
       "unit": "count"
     },
     {
       "key": "server.journal_latency",
-      "label": "日志延迟",
+      "label": "Journal Latency Alias",
       "source": "perf_dump",
       "unit": "sec"
     },
     {
       "key": "mds_cache.num_inodes",
-      "label": "Inode 数量",
+      "label": "Inode Count Alias",
       "source": "perf_dump",
       "unit": "count"
     },
     {
       "key": "mds_cache.num_caps",
-      "label": "Caps 数量",
+      "label": "Caps Count Alias",
       "source": "perf_dump",
+      "unit": "count"
+    },
+    {
+      "key": "cpu_percent",
+      "label": "CPU Usage",
+      "source": "proc_stat",
+      "unit": "%"
+    },
+    {
+      "key": "memory_mb",
+      "label": "Memory Usage",
+      "source": "proc_stat",
+      "unit": "MB"
+    },
+    {
+      "key": "io_read_bytes",
+      "label": "IO Read Bytes",
+      "source": "proc_stat",
+      "unit": "bytes"
+    },
+    {
+      "key": "io_write_bytes",
+      "label": "IO Write Bytes",
+      "source": "proc_stat",
+      "unit": "bytes"
+    },
+    {
+      "key": "open_files",
+      "label": "Open Files",
+      "source": "proc_stat",
       "unit": "count"
     }
   ]

@@ -6,5 +6,6 @@
   "runs_dir": "data/runs",
   "state_dir": "data/state",
   "scripts_dir": ".",
-  "run_lock_file": "data/state/current_run.json"
+  "run_lock_file": "data/state/current_run.json",
+  "max_upload_mb": 256
 }
