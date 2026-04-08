@@ -35,10 +35,22 @@ export default function LineChart({ data, xAxisLabel = "Time", yAxisLabel = "Val
   const maxValue = Math.max(...numericValues);
   const minTime = Math.min(...numericTimes);
   const maxTime = Math.max(...numericTimes);
-  const valueSpan = maxValue - minValue || 1;
+  const isFlatValue = minValue === maxValue;
+  const flatPadding = isFlatValue ? Math.max(Math.abs(maxValue) * 0.1, 1) : 0;
+  const yAxisMin = minValue - flatPadding;
+  const yAxisMax = maxValue + flatPadding;
+  const valueSpan = yAxisMax - yAxisMin || 1;
   const timeSpan = maxTime - minTime || 1;
   const plotWidth = width - padLeft - padRight;
   const plotHeight = height - padTop - padBottom;
+  const yTickCount = 5;
+  const yTicks = Array.from({ length: yTickCount + 1 }, (_, index) => {
+    const ratio = index / yTickCount;
+    return {
+      y: padTop + ratio * plotHeight,
+      value: yAxisMax - ratio * valueSpan,
+    };
+  });
 
   const seriesData = entries.map(([name, series], index) => {
     const stroke = palette[index % palette.length];
@@ -50,7 +62,7 @@ export default function LineChart({ data, xAxisLabel = "Time", yAxisLabel = "Val
           return null;
         }
         const x = padLeft + ((ts - minTime) / timeSpan) * plotWidth;
-        const y = padTop + plotHeight - ((value - minValue) / valueSpan) * plotHeight;
+        const y = padTop + plotHeight - ((value - yAxisMin) / valueSpan) * plotHeight;
         return {
           x,
           y,
@@ -102,6 +114,22 @@ export default function LineChart({ data, xAxisLabel = "Time", yAxisLabel = "Val
         <rect x="0" y="0" width={width} height={height} fill="#111827" />
         <line x1={padLeft} y1={height - padBottom} x2={width - padRight} y2={height - padBottom} stroke="#2f3b52" />
         <line x1={padLeft} y1={padTop} x2={padLeft} y2={height - padBottom} stroke="#2f3b52" />
+        {yTicks.map((tick) => (
+          <g key={`y-tick-${tick.y}`}>
+            <line
+              x1={padLeft}
+              y1={tick.y}
+              x2={width - padRight}
+              y2={tick.y}
+              stroke="#2f3b52"
+              strokeDasharray="2 4"
+              opacity="0.45"
+            />
+            <text x={padLeft - 8} y={tick.y + 4} fill="#8fa2bf" fontSize="11" textAnchor="end">
+              {tick.value.toFixed(2)}
+            </text>
+          </g>
+        ))}
         {seriesData.map((series) => (
           <polyline key={series.name} fill="none" stroke={series.stroke} strokeWidth="2.8" points={series.polyline} />
         ))}
@@ -149,12 +177,6 @@ export default function LineChart({ data, xAxisLabel = "Time", yAxisLabel = "Val
         </text>
         <text x={width - padRight} y={height - padBottom + 18} fill="#8fa2bf" fontSize="11" textAnchor="end">
           {formatTimestamp(maxTime)}
-        </text>
-        <text x={padLeft - 8} y={padTop + 4} fill="#8fa2bf" fontSize="11" textAnchor="end">
-          {maxValue.toFixed(2)}
-        </text>
-        <text x={padLeft - 8} y={height - padBottom + 4} fill="#8fa2bf" fontSize="11" textAnchor="end">
-          {minValue.toFixed(2)}
         </text>
       </svg>
       <div className="chart-coordinates">
